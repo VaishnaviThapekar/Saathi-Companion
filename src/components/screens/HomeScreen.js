@@ -3,7 +3,13 @@ import { useState } from "react";
 
 
 // Helper functions - these should match what's in your App.js
-const todayKey = () => new Date().toISOString().slice(0, 10);
+const todayKey = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
 const now = () => new Date();
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -17,6 +23,7 @@ export default function HomeScreen({
     setHabits,
     setTab,
     gratitude,
+    dailyCheckIn,
     lastCheckInDate,
     setDailyCheckIn,
     setLastCheckInDate,
@@ -36,10 +43,15 @@ export default function HomeScreen({
     const activeTasks = tasks.filter(t => !t.done).length;
     const completedToday = tasks.filter(t => t.done && t.lastCompleted?.startsWith(today)).length;
     const todayGratitude = gratitude[today];
+    const todayCheckIn = dailyCheckIn && dailyCheckIn.date === today ? dailyCheckIn : null;
     const todayEnergyEntries = energyLog[today] || [];
     const latestEnergy = todayEnergyEntries[todayEnergyEntries.length - 1]?.level;
     const activeHabits = habits.filter(h => !h.archived);
     const doneHabits = activeHabits.filter(h => (h.completions || []).includes(today));
+    const hasSnapshot = Boolean(todayGratitude)
+        || typeof latestEnergy === "number"
+        || activeHabits.length > 0
+        || Boolean(todayCheckIn);
 
     const weekStart = (date) => {
         const d = new Date(date);
@@ -70,7 +82,7 @@ export default function HomeScreen({
     const submitCheckIn = () => {
         if (!mood) return;
         const entry = { id: now().toISOString(), date: today, mood, struggles, timestamp: now().toISOString() };
-        setMoodLog(p => [...p, entry]);
+        setMoodLog(p => (Array.isArray(p) ? [...p, entry] : [entry]));
         setDailyCheckIn(entry);
         setLastCheckInDate(today);
         setShowCheckIn(false);
@@ -396,6 +408,31 @@ export default function HomeScreen({
                     </div>
                 )}
 
+                {/* Daily Check-In */}
+                {todayCheckIn && (
+                    <div className="glass" style={{
+                        borderRadius: 14,
+                        padding: 16,
+                        marginBottom: 12,
+                        borderLeft: "4px solid #ffafbd"
+                    }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                            <Icon name="smile" size={16} color="#ffafbd" />
+                            <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(139, 126, 116, 0.7)" }}>
+                                Today's Check-In
+                            </p>
+                        </div>
+                        <p style={{ fontSize: 14, color: "#5a4a42", lineHeight: 1.6 }}>
+                            Mood: {todayCheckIn.mood}
+                        </p>
+                        {todayCheckIn.struggles && (
+                            <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginTop: 6, lineHeight: 1.6 }}>
+                                {todayCheckIn.struggles}
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 {/* Energy Level */}
                 {typeof latestEnergy === "number" && (
                     <div className="glass" style={{
@@ -489,6 +526,35 @@ export default function HomeScreen({
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+
+                {!hasSnapshot && (
+                    <div className="glass" style={{
+                        borderRadius: 14,
+                        padding: 16,
+                        marginBottom: 12,
+                        borderLeft: "4px solid rgba(139, 126, 116, 0.2)"
+                    }}>
+                        <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.7)", lineHeight: 1.6 }}>
+                            No snapshot yet. Add a check-in, gratitude, or energy log to see today here.
+                        </p>
+                        <button
+                            onClick={() => setShowCheckIn(true)}
+                            style={{
+                                marginTop: 10,
+                                padding: "8px 12px",
+                                borderRadius: 10,
+                                background: "linear-gradient(135deg, #ffc3a0, #ffafbd)",
+                                border: "none",
+                                color: "#fff",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                cursor: "pointer"
+                            }}
+                        >
+                            Start Daily Check-In
+                        </button>
                     </div>
                 )}
 

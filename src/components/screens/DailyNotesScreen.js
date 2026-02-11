@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
 
-/**
- * DAILY NOTES SCREEN
- * Interactive calendar with note-taking for each day
- * - Auto-selects today's date
- * - Navigate between months
- * - Highlights days with notes
- * - Auto-saves notes
- */
+
 
 export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -16,12 +9,34 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
     const [noteText, setNoteText] = useState("");
 
     // Helper to get date key (YYYY-MM-DD)
-    const dateKey = (date) => date.toISOString().slice(0, 10);
+    const dateKey = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+    };
+    const utcDateKey = (date) => date.toISOString().slice(0, 10);
+    const shiftDate = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+    const getNoteForDate = (date) => {
+        const candidates = [
+            dateKey(date),
+            utcDateKey(date),
+            dateKey(shiftDate(date, -1)),
+            dateKey(shiftDate(date, 1))
+        ];
+
+        for (const key of candidates) {
+            if (dailyNotes[key]) {
+                return dailyNotes[key];
+            }
+        }
+
+        return "";
+    };
 
     // Load note for selected date
     useEffect(() => {
-        const key = dateKey(selectedDate);
-        setNoteText(dailyNotes[key] || "");
+        setNoteText(getNoteForDate(selectedDate));
     }, [selectedDate, dailyNotes]);
 
     // Save note for selected date

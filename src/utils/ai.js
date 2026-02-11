@@ -2,30 +2,55 @@
 // AI UTILITIES (Claude API)
 // ═══════════════════════════════════════════════════════════════════════
 
+const getClaudeApiKey = () => {
+  const apiKey = process.env.REACT_APP_ANTHROPIC_API_KEY;
+
+  if (!apiKey) {
+    throw new Error("Missing REACT_APP_ANTHROPIC_API_KEY");
+  }
+
+  return apiKey;
+};
+
+const callClaude = async payload => {
+  const useProxy = process.env.NODE_ENV === "production";
+  const url = useProxy ? "/api/claude" : "https://api.anthropic.com/v1/messages";
+  const headers = {
+    "Content-Type": "application/json"
+  };
+
+  if (!useProxy) {
+    headers["x-api-key"] = getClaudeApiKey();
+    headers["anthropic-version"] = "2023-06-01";
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(payload)
+  });
+
+  return response;
+};
+
 /**
  * Call Claude API
- * 
+ *
  * @param {string} prompt - The prompt to send
  * @param {number} maxTokens - Maximum tokens in response
  * @returns {Promise<string>} - AI response text
  */
 export const callAI = async (prompt, maxTokens = 800) => {
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: maxTokens,
-        messages: [
-          {
-            role: "user",
-            content: prompt
-          }
-        ]
-      })
+    const response = await callClaude({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: maxTokens,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
     });
 
     if (!response.ok) {
@@ -50,7 +75,7 @@ export const generateAffirmation = async (userName, struggles) => {
   }
 
   const prompt = `Based on these struggles: "${struggles}", create 1 warm, personalized affirmation for ${userName}. Make it specific, not generic. 1 sentence only.`;
-  
+
   try {
     const text = await callAI(prompt, 100);
     return text.replace(/"/g, "").trim();
@@ -64,7 +89,7 @@ export const generateAffirmation = async (userName, struggles) => {
  */
 export const generateWeeklyReflection = async (userName, data) => {
   const { proud, struggles, helped, gratitudes } = data;
-  
+
   const prompt = `Write a warm, personal weekly reflection for ${userName}.
 
 Proud moments: ${proud}
@@ -117,20 +142,14 @@ ${momentsContext}
 When they share struggles or feelings, gently recall similar past moments if relevant (e.g., "Last time you felt this way, music helped a little"). Be warm, present, and genuinely supportive. Keep responses conversational and brief.`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 600,
-        system: systemPrompt,
-        messages: messages.map(m => ({
-          role: m.role,
-          content: m.content
-        }))
-      })
+    const response = await callClaude({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 600,
+      system: systemPrompt,
+      messages: messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }))
     });
 
     if (!response.ok) {

@@ -65,10 +65,56 @@ const Icon = ({ name, size = 22, color = "currentColor", sw = 1.8 }) => {
 // ═════════════════════════════════════════════════════════════════════════
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 const now = () => new Date();
-const todayKey = () => now().toISOString().slice(0, 10);
+const localDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+const todayKey = () => localDateKey(now());
+const dateKeyPattern = /^\d{4}-\d{2}-\d{2}$/;
+const normalizeDailyNotes = (notes) => {
+  if (!notes || typeof notes !== "object" || Array.isArray(notes)) {
+    return {};
+  }
+
+  const normalized = { ...notes };
+
+  Object.keys(notes).forEach(key => {
+    if (!dateKeyPattern.test(key)) return;
+    const utcDate = new Date(`${key}T00:00:00Z`);
+    if (Number.isNaN(utcDate.getTime())) return;
+    const localKey = localDateKey(utcDate);
+    if (!normalized[localKey]) {
+      normalized[localKey] = notes[key];
+    }
+  });
+
+  return normalized;
+};
 const fmtTime = d => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 const fmtDate = d => new Date(d).toLocaleDateString([], { month: "short", day: "numeric" });
 const isOverdue = t => !t.done && t.dueDate && new Date(t.dueDate + "T23:59:59") < now();
+const ensureArray = value => (Array.isArray(value) ? value : []);
+const getLegacyPin = () => {
+  try {
+    const candidates = [
+      localStorage.getItem("lockPinBackup"),
+      localStorage.getItem("lockPin"),
+      localStorage.getItem("privacyPin"),
+      localStorage.getItem("pin")
+    ];
+
+    return candidates.find(pin => pin && pin !== "null" && pin !== "undefined") || "";
+  } catch {
+    return "";
+  }
+};
+const normalizeLockState = (enabled, pin) => {
+  const normalizedPin = pin || getLegacyPin();
+  const normalizedEnabled = normalizedPin ? true : Boolean(enabled);
+  return { normalizedEnabled, normalizedPin };
+};
 
 const load = async (k, fb) => { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : fb; } catch { return fb; } };
 const save = async (k, v) => { try { await window.storage.set(k, JSON.stringify(v)); } catch (e) { console.error(e); } };
@@ -80,6 +126,50 @@ const callAI = async (prompt, maxTokens = 800) => {
   });
   const data = await res.json();
   return data.content[0].text;
+};
+
+const pickFrom = (items, seed) => items[seed % items.length];
+const normalize = (text) => (text || "").toLowerCase();
+const truncateText = (text, max = 80) => (text.length > max ? `${text.slice(0, max - 3)}...` : text);
+
+const getLocalChatReply = ({ userName, meaningfulMoments, message }) => {
+  const msg = normalize(message);
+  const name = userName || "there";
+  const lastMoment = meaningfulMoments.slice().reverse().find(m => m && m.text);
+  const memoryLine = lastMoment
+    ? `I remember you noted: "${truncateText(lastMoment.text)}". `
+    : "";
+
+  let reply = "";
+
+  if (/^(hi|hello|hey)\b/.test(msg)) {
+    reply = `Hi ${name}. I'm here with you. How are you feeling right now?`;
+  } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
+    reply = `I'm really sorry you're feeling that way. ${memoryLine}Do you want to share what's weighing on you most?`;
+  } else if (/(happy|good|great|excited|proud|grateful|relieved)/.test(msg)) {
+    reply = `I'm glad to hear that. ${memoryLine}Want to capture what made it feel good?`;
+  } else if (/(tired|exhaust|sleep|burnout)/.test(msg)) {
+    reply = "Sounds like your body is asking for rest. Want to talk about what's draining you or try a quick reset?";
+  } else if (/(task|todo|plan|habit|goal|focus|procrast)/.test(msg)) {
+    reply = "We can break it into one small step. What's the tiniest next action you can do in 5 minutes?";
+  } else if (/thank|thanks/.test(msg)) {
+    reply = "You're welcome. I'm here for you. Want to keep going or pause for a breath?";
+  } else if (/help|what should i do|advice/.test(msg)) {
+    reply = "Let's keep it gentle and practical. What do you want to feel by the end of today?";
+  } else if (msg.length < 4) {
+    reply = "I'm here. If you want, tell me a little more about what's on your mind.";
+  } else {
+    reply = `Thanks for sharing that. ${memoryLine}What feels most important to you right now?`;
+  }
+
+  const followUps = [
+    "If you'd like, we can do a 4-4-6 breath together.",
+    "Want me to save this as a meaningful moment?",
+    "Should I turn this into a small task or habit?"
+  ];
+
+  const extra = pickFrom(followUps, message.length || 1);
+  return `${reply} ${extra}`.replace(/\s+/g, " ").trim();
 };
 
 const playNotificationSound = () => {
@@ -146,11 +236,24 @@ export default function App() {
         load("emotionalPatterns", null), load("autoSuggestions", []), load("lockEnabled", false), load("lockPin", ""),
       ]);
 
-      setUserName(n); setTasks(t); setHabits(hb); setNotes(nt); setPhotos(ph); setMeaningfulMoments(mm);
-      setChatMsgs(ch); setDailyCheckIn(dc); setLastCheckInDate(lcd); setDailyNotes(dn); setVoiceNotes(vn);
-      setGratitude(gr); setEnergyLog(el); setMoodLog(ml); setAffirmations(af); setWeeklyReflection(wr);
-      setEmotionalPatterns(ep); setAutoSuggestions(as);
-      setLockEnabled(le); setLockPin(lp);
+      const normalizedTasks = ensureArray(t);
+      const normalizedHabits = ensureArray(hb);
+      const normalizedNotes = ensureArray(nt);
+      const normalizedPhotos = ensureArray(ph);
+      const normalizedMoments = ensureArray(mm);
+      const normalizedChatMsgs = ensureArray(ch);
+      const normalizedVoiceNotes = ensureArray(vn);
+      const normalizedMoodLog = ensureArray(ml);
+      const normalizedAffirmations = ensureArray(af);
+      const normalizedAutoSuggestions = ensureArray(as);
+
+      setUserName(n); setTasks(normalizedTasks); setHabits(normalizedHabits); setNotes(normalizedNotes); setPhotos(normalizedPhotos); setMeaningfulMoments(normalizedMoments);
+      const normalizedDailyNotes = normalizeDailyNotes(dn);
+      setChatMsgs(normalizedChatMsgs); setDailyCheckIn(dc); setLastCheckInDate(lcd); setDailyNotes(normalizedDailyNotes); setVoiceNotes(normalizedVoiceNotes);
+      setGratitude(gr); setEnergyLog(el); setMoodLog(normalizedMoodLog); setAffirmations(normalizedAffirmations); setWeeklyReflection(wr);
+      setEmotionalPatterns(ep); setAutoSuggestions(normalizedAutoSuggestions);
+      const { normalizedEnabled, normalizedPin } = normalizeLockState(le, lp);
+      setLockEnabled(normalizedEnabled); setLockPin(normalizedPin);
       if (le && lp) setIsLocked(true);
 
       setBooted(true);
@@ -178,7 +281,17 @@ export default function App() {
   useEffect(() => { if (booted) save("emotionalPatterns", emotionalPatterns); }, [emotionalPatterns, booted]);
   useEffect(() => { if (booted) save("autoSuggestions", autoSuggestions); }, [autoSuggestions, booted]);
   useEffect(() => { if (booted) save("lockEnabled", lockEnabled); }, [lockEnabled, booted]);
-  useEffect(() => { if (booted) save("lockPin", lockPin); }, [lockPin, booted]);
+  useEffect(() => {
+    if (!booted) return;
+    save("lockPin", lockPin);
+    if (lockPin) {
+      try {
+        localStorage.setItem("lockPinBackup", lockPin);
+      } catch {
+        // ignore backup failures
+      }
+    }
+  }, [lockPin, booted]);
 
   // ── Habit reminders ──
   useEffect(() => {
@@ -1590,23 +1703,9 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, userName }) {
     setInput("");
     setLoading(true);
 
-    try {
-      const momentsContext = meaningfulMoments.slice(-10).map(m => `${m.type}: "${m.text}" (${m.emotion})`).join("\n");
-      const systemPrompt = `You are ${userName}'s empathetic AI companion. You remember their meaningful moments:\n${momentsContext}\n\nWhen they share struggles or feelings, gently recall similar past moments if relevant. Be warm, present, supportive. Keep responses brief.`;
-
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514", max_tokens: 600,
-          system: systemPrompt,
-          messages: updated.map(m => ({ role: m.role, content: m.content }))
-        })
-      });
-      const data = await res.json();
-      setChatMsgs(p => [...p, { role: "assistant", content: data.content[0].text, time: now().toISOString() }]);
-    } catch {
-      setChatMsgs(p => [...p, { role: "assistant", content: "I'm having trouble connecting. Try again?", time: now().toISOString() }]);
-    }
+    await new Promise(resolve => setTimeout(resolve, 350));
+    const reply = getLocalChatReply({ userName, meaningfulMoments, message: msg.content });
+    setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, time: now().toISOString() }] : [{ role: "assistant", content: reply, time: now().toISOString() }]));
     setLoading(false);
   };
 
@@ -1661,11 +1760,28 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [noteText, setNoteText] = useState("");
 
-  const dateKey = (date) => date.toISOString().slice(0, 10);
+  const dateKey = (date) => localDateKey(date);
+  const utcDateKey = (date) => date.toISOString().slice(0, 10);
+  const shiftDate = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+  const getNoteForDate = (date) => {
+    const candidates = [
+      dateKey(date),
+      utcDateKey(date),
+      dateKey(shiftDate(date, -1)),
+      dateKey(shiftDate(date, 1))
+    ];
+
+    for (const key of candidates) {
+      if (dailyNotes[key]) {
+        return dailyNotes[key];
+      }
+    }
+
+    return "";
+  };
 
   useEffect(() => {
-    const key = dateKey(selectedDate);
-    setNoteText(dailyNotes[key] || "");
+    setNoteText(getNoteForDate(selectedDate));
   }, [selectedDate, dailyNotes]);
 
   const saveNote = () => {
