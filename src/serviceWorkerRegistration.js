@@ -1,0 +1,44 @@
+const isLocalhost = Boolean(
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "[::1]" ||
+    window.location.hostname.match(
+        /^127(?:\.\d{1,3}){3}$/
+    )
+);
+
+export function register() {
+    if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+            const swUrl = `${process.env.PUBLIC_URL}/service-worker.js`;
+
+            if (isLocalhost) {
+                checkValidServiceWorker(swUrl);
+            } else {
+                registerValidSW(swUrl);
+            }
+        });
+    }
+}
+
+function registerValidSW(swUrl) {
+    navigator.serviceWorker
+        .register(swUrl)
+        .catch(() => { });
+}
+
+function checkValidServiceWorker(swUrl) {
+    fetch(swUrl)
+        .then((response) => {
+            const contentType = response.headers.get("content-type");
+            if (response.status === 404 || (contentType && contentType.indexOf("javascript") === -1)) {
+                navigator.serviceWorker.ready.then((registration) => {
+                    registration.unregister().then(() => {
+                        window.location.reload();
+                    });
+                });
+            } else {
+                registerValidSW(swUrl);
+            }
+        })
+        .catch(() => { });
+}
