@@ -1,4 +1,4 @@
-# ![Saathi icon](public/icons/icon-192.svg) Saathi
+# <img src="public/icons/icon-192.svg" alt="Saathi icon" width="20" height="20" style="vertical-align: middle;" /> Saathi
 
 Saathi ("friend") is your personal AI companion for wellness, productivity, and reflection.
 
