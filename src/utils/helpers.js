@@ -1,6 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════
-// HELPER UTILITIES
-// ═══════════════════════════════════════════════════════════════════════
+//  ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Generate unique ID
@@ -79,14 +77,14 @@ export const playNotificationSound = () => {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
-    
+
     osc.connect(gain);
     gain.connect(ctx.destination);
-    
+
     osc.frequency.value = 800;
     gain.gain.value = 0.3;
     osc.start();
-    
+
     gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
     osc.stop(ctx.currentTime + 0.5);
   } catch (error) {
@@ -100,7 +98,7 @@ export const playNotificationSound = () => {
 export const calculateStreak = (log, currentDate) => {
   let streak = 0;
   let d = new Date(currentDate || todayKey());
-  
+
   for (let i = 0; i < 365; i++) {
     const key = d.toISOString().slice(0, 10);
     if (log[key]) {
@@ -112,7 +110,7 @@ export const calculateStreak = (log, currentDate) => {
       d.setDate(d.getDate() - 1);
     }
   }
-  
+
   return streak;
 };
 

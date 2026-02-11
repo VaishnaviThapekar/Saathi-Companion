@@ -1,17 +1,3 @@
-// ═══════════════════════════════════════════════════════════════════════
-// STORAGE UTILITIES
-// ═══════════════════════════════════════════════════════════════════════
-
-/**
- * localStorage wrapper with async API matching Claude's window.storage
- * 
- * For Claude.ai deployment:
- * - Replace localStorage calls with window.storage
- * - Storage API is already async
- * 
- * For local development:
- * - Uses localStorage with Promise wrapper
- */
 
 // Mock window.storage if not available (local development)
 if (!window.storage) {

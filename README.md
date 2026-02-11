@@ -1,4 +1,4 @@
-# 🌸 Saathi
+# ![Saathi icon](public/icons/icon-192.svg) Saathi
 
 Saathi ("friend") is your personal AI companion for wellness, productivity, and reflection.
 
@@ -101,7 +101,7 @@ npm run build
 npm install --save-dev gh-pages
 
 # Add to package.json:
-"homepage": "https://yourusername.github.io/ai-companion",
+"homepage": "https://VaishnaviThapekar.github.io/Saathi-companion",
 "predeploy": "npm run build",
 "deploy": "gh-pages -d build"
 
