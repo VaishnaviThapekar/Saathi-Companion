@@ -223,17 +223,22 @@ export default function App() {
   const [emotionalPatterns, setEmotionalPatterns] = useState(null);
   const [autoSuggestions, setAutoSuggestions] = useState([]);
   const [toast, setToast] = useState("");
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [activeTaskAlarm, setActiveTaskAlarm] = useState(null);
   const toastTimerRef = useRef(null);
+  const alarmIntervalRef = useRef(null);
+  const alarmTimeoutRef = useRef(null);
 
   // ── Boot ──
   useEffect(() => {
     (async () => {
-      const [n, t, hb, nt, ph, mm, ch, dc, lcd, dn, vn, gr, el, ml, af, wr, ep, as, le, lp] = await Promise.all([
+      const [n, t, hb, nt, ph, mm, ch, dc, lcd, dn, vn, gr, el, ml, af, wr, ep, as, le, lp, lsa] = await Promise.all([
         load("userName", ""), load("tasks", []), load("habits", []), load("notes", []), load("photos", []),
         load("meaningfulMoments", []), load("chatMsgs", []), load("dailyCheckIn", null),
         load("lastCheckInDate", null), load("dailyNotes", {}), load("voiceNotes", []), load("gratitude", {}),
         load("energyLog", {}), load("moodLog", []), load("affirmations", []), load("weeklyReflection", null),
         load("emotionalPatterns", null), load("autoSuggestions", []), load("lockEnabled", false), load("lockPin", ""),
+        load("lastSavedAt", null),
       ]);
 
       const normalizedTasks = ensureArray(t);
@@ -252,6 +257,7 @@ export default function App() {
       setChatMsgs(normalizedChatMsgs); setDailyCheckIn(dc); setLastCheckInDate(lcd); setDailyNotes(normalizedDailyNotes); setVoiceNotes(normalizedVoiceNotes);
       setGratitude(gr); setEnergyLog(el); setMoodLog(normalizedMoodLog); setAffirmations(normalizedAffirmations); setWeeklyReflection(wr);
       setEmotionalPatterns(ep); setAutoSuggestions(normalizedAutoSuggestions);
+      setLastSavedAt(lsa);
       const { normalizedEnabled, normalizedPin } = normalizeLockState(le, lp);
       setLockEnabled(normalizedEnabled); setLockPin(normalizedPin);
       if (le && lp) setIsLocked(true);
@@ -293,6 +299,35 @@ export default function App() {
     }
   }, [lockPin, booted]);
 
+  useEffect(() => {
+    if (!booted) return;
+    const ts = now().toISOString();
+    setLastSavedAt(ts);
+    save("lastSavedAt", ts);
+  }, [
+    booted,
+    userName,
+    tasks,
+    habits,
+    notes,
+    photos,
+    meaningfulMoments,
+    chatMsgs,
+    dailyCheckIn,
+    lastCheckInDate,
+    dailyNotes,
+    voiceNotes,
+    gratitude,
+    energyLog,
+    moodLog,
+    affirmations,
+    weeklyReflection,
+    emotionalPatterns,
+    autoSuggestions,
+    lockEnabled,
+    lockPin,
+  ]);
+
   // ── Habit reminders ──
   useEffect(() => {
     if (!booted) return;
@@ -326,6 +361,34 @@ export default function App() {
     return () => clearInterval(iv);
   }, [booted, habits]);
 
+  const triggerAlarmSignal = () => {
+    playNotificationSound();
+    if ("vibrate" in navigator) {
+      navigator.vibrate([200, 100, 200]);
+    }
+  };
+
+  const startTaskAlarm = (task) => {
+    if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+    if (alarmTimeoutRef.current) clearTimeout(alarmTimeoutRef.current);
+    setActiveTaskAlarm({ id: task.id, title: task.title, dueDate: task.dueDate, dueTime: task.dueTime, snoozedUntil: null });
+    triggerAlarmSignal();
+    alarmIntervalRef.current = setInterval(triggerAlarmSignal, 4000);
+  };
+
+  const snoozeTaskAlarm = (minutes) => {
+    if (!activeTaskAlarm) return;
+    if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+    if (alarmTimeoutRef.current) clearTimeout(alarmTimeoutRef.current);
+    const until = Date.now() + minutes * 60 * 1000;
+    setActiveTaskAlarm(p => (p ? { ...p, snoozedUntil: until } : p));
+    alarmTimeoutRef.current = setTimeout(() => {
+      setActiveTaskAlarm(p => (p ? { ...p, snoozedUntil: null } : p));
+      triggerAlarmSignal();
+      alarmIntervalRef.current = setInterval(triggerAlarmSignal, 4000);
+    }, minutes * 60 * 1000);
+  };
+
   // ── Task notifications ──
   useEffect(() => {
     const check = () => {
@@ -333,9 +396,14 @@ export default function App() {
         if (!t.done && !t.notified && t.dueDate && t.dueTime) {
           const dueDateTime = new Date(`${t.dueDate}T${t.dueTime}`);
           if (dueDateTime <= now()) {
-            playNotificationSound();
+            triggerAlarmSignal();
             if ("Notification" in window && Notification.permission === "granted") {
               new Notification("🔔 Task Reminder", { body: `"${t.title}" is due now!` });
+            }
+            const isSameAlarm = activeTaskAlarm && activeTaskAlarm.id === t.id;
+            const snoozed = isSameAlarm && activeTaskAlarm.snoozedUntil && Date.now() < activeTaskAlarm.snoozedUntil;
+            if (!snoozed && (!activeTaskAlarm || activeTaskAlarm.id !== t.id)) {
+              startTaskAlarm(t);
             }
             setTasks(p => p.map(tk => tk.id === t.id ? { ...tk, notified: true } : tk));
           }
@@ -352,7 +420,19 @@ export default function App() {
     check();
     const iv = setInterval(check, 30000);
     return () => clearInterval(iv);
-  }, [tasks]);
+  }, [tasks, activeTaskAlarm]);
+
+  useEffect(() => {
+    if (!activeTaskAlarm) return;
+    const current = tasks.find(t => t.id === activeTaskAlarm.id);
+    if (!current || current.done) {
+      if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+      if (alarmTimeoutRef.current) clearTimeout(alarmTimeoutRef.current);
+      alarmIntervalRef.current = null;
+      alarmTimeoutRef.current = null;
+      setActiveTaskAlarm(null);
+    }
+  }, [tasks, activeTaskAlarm]);
 
   // ── Daily check-in ──
   useEffect(() => {
@@ -410,6 +490,7 @@ export default function App() {
     setLockEnabled(false);
     setLockPin("");
     setIsLocked(false);
+    setLastSavedAt(null);
     setTab("home");
   };
 
@@ -419,11 +500,19 @@ export default function App() {
     toastTimerRef.current = setTimeout(() => setToast(""), 2500);
   };
 
+  const dismissTaskAlarm = () => {
+    if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
+    if (alarmTimeoutRef.current) clearTimeout(alarmTimeoutRef.current);
+    alarmIntervalRef.current = null;
+    alarmTimeoutRef.current = null;
+    setActiveTaskAlarm(null);
+  };
+
   if (!booted) return <div style={{ background: "linear-gradient(135deg, #fef3e2 0%, #fde8f4 50%, #e8f5e9 100%)", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8b7e74", fontSize: 15 }}>Loading…</span></div>;
   if (lockEnabled && lockPin && isLocked) return <LockScreen onUnlock={() => setIsLocked(false)} lockPin={lockPin} onReset={() => { setLockEnabled(false); setLockPin(""); setIsLocked(false); }} />;
   if (!userName) return <NameSetup onSet={setUserName} />;
 
-  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount };
+  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt };
 
   const screens = {
     home: <HomeScreen {...shared} />,
@@ -438,20 +527,20 @@ export default function App() {
   };
 
   return (
-    <div style={{ background: "linear-gradient(135deg, #fef3e2 0%, #fde8f4 50%, #e8f5e9 100%)", minHeight: "100vh", color: "#5a4a42", fontFamily: "'Quicksand', sans-serif", maxWidth: 430, margin: "0 auto", position: "relative", overflowX: "hidden" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&family=Crimson+Text:ital@0;1&display=swap');
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { background: linear-gradient(135deg, #fef3e2 0%, #fde8f4 50%, #e8f5e9 100%); }
-        ::-webkit-scrollbar { width: 0; }
-        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.4); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06); }
-        .fade-in { animation: fadeUp 0.4s ease both; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        input::placeholder, textarea::placeholder { color: rgba(139, 126, 116, 0.4); }
-        @keyframes breathe { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.2); opacity: 1; } }
-        @keyframes breatheIn { from { transform: scale(1); } to { transform: scale(1.3); } }
-        @keyframes breatheOut { from { transform: scale(1.3); } to { transform: scale(1); } }
-      `}</style>
+    <div className="app-shell">
+      {activeTaskAlarm && (
+        <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.95)", border: "1px solid rgba(255, 195, 160, 0.5)", borderRadius: 16, padding: "12px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)", zIndex: 250, width: "calc(100% - 32px)", maxWidth: 420, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <strong style={{ fontSize: 13 }}>Task due now</strong>
+            <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.8)" }}>{activeTaskAlarm.title}</span>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { setTasks(p => p.map(t => t.id === activeTaskAlarm.id ? { ...t, done: true } : t)); dismissTaskAlarm(); }} style={{ padding: "6px 10px", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Mark done</button>
+            <button onClick={() => snoozeTaskAlarm(5)} style={{ padding: "6px 10px", borderRadius: 10, background: "rgba(139, 126, 116, 0.12)", border: "none", color: "rgba(139, 126, 116, 0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Snooze</button>
+            <button onClick={dismissTaskAlarm} style={{ padding: "6px 10px", borderRadius: 10, background: "rgba(139, 126, 116, 0.12)", border: "none", color: "rgba(139, 126, 116, 0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Dismiss</button>
+          </div>
+        </div>
+      )}
       {toast && (
         <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.9)", border: "1px solid rgba(255, 195, 160, 0.4)", borderRadius: 14, padding: "10px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)", zIndex: 200 }}>
           {toast}
@@ -523,27 +612,85 @@ function LockScreen({ onUnlock, lockPin, onReset }) {
 // ═══════════════════════════════════════════════════════════════════════
 function BottomNav({ tab, setTab }) {
   const tabs = [
-    { id: "home", icon: "home" },
-    { id: "tasks", icon: "tasks" },
-    { id: "habits", icon: "target" },
-    { id: "wellness", icon: "heart" },
-    { id: "memories", icon: "memories" },
-    { id: "notes", icon: "calendar" },
-    { id: "chat", icon: "chat" },
-    { id: "settings", icon: "lock" },
+    { id: "home", icon: "home", label: "Home" },
+    { id: "tasks", icon: "tasks", label: "Tasks" },
+    { id: "habits", icon: "target", label: "Habits" },
+    { id: "wellness", icon: "heart", label: "Wellness" },
+    { id: "memories", icon: "memories", label: "Memories" },
+    { id: "notes", icon: "calendar", label: "Notes" },
+    { id: "chat", icon: "chat", label: "Chat" },
+    { id: "settings", icon: "lock", label: "Settings" },
   ];
   return (
-    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "rgba(255, 255, 255, 0.85)", backdropFilter: "blur(20px)", borderTop: "1px solid rgba(255, 255, 255, 0.5)", display: "flex", justifyContent: "space-around", padding: "12px 0 24px", zIndex: 100, boxShadow: "0 -4px 24px rgba(0, 0, 0, 0.04)" }}>
-      {tabs.map(t => {
-        const active = tab === t.id;
-        return (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{ background: "none", border: "none", color: active ? "#ff9a76" : "rgba(139, 126, 116, 0.5)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", position: "relative", padding: "4px 16px", transition: "color 0.2s" }}>
-            <Icon name={t.icon} size={22} color="currentColor" sw={active ? 2.2 : 1.7} />
-            {active && <div style={{ position: "absolute", top: -6, width: 28, height: 3, borderRadius: 2, background: "linear-gradient(90deg, #ffc3a0, #ffafbd)" }} />}
-          </button>
-        );
-      })}
-    </div>
+    <div className="bottom-nav" style={{
+      position: "fixed",
+      bottom: 0,
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "100%",
+      maxWidth: 430,
+      background: "linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0.95) 100%)",
+      backdropFilter: "blur(30px)",
+      WebkitBackdropFilter: "blur(30px)",
+      borderTop: "1.5px solid rgba(255, 255, 255, 0.6)",
+      display: "flex",
+      justifyContent: "space-around",
+      padding: "12px 0 24px",
+      zIndex: 100,
+      boxShadow: "0 -8px 32px rgba(0, 0, 0, 0.08)"
+    }}>
+      {
+        tabs.map(t => {
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`bottom-nav-btn${active ? " is-active" : ""}`}
+              style={{
+                background: "none",
+                border: "none",
+                color: active ? "#ff9a76" : "rgba(139, 126, 116, 0.5)",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 5,
+                cursor: "pointer",
+                position: "relative",
+                padding: "6px 12px",
+                transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                borderRadius: 12
+              }}
+            >
+              <span className="bottom-nav-icon">
+                <Icon name={t.icon} size={22} color="currentColor" sw={active ? 2.4 : 1.8} />
+              </span>
+              <span className="bottom-nav-label" style={{
+                fontSize: 10,
+                fontWeight: active ? 700 : 600,
+                letterSpacing: "0.3px",
+                transition: "all 0.3s ease",
+                opacity: active ? 1 : 0.8
+              }}>
+                {t.label}
+              </span>
+              {active && (
+                <div style={{
+                  position: "absolute",
+                  top: -8,
+                  width: 28,
+                  height: 3,
+                  borderRadius: 2,
+                  background: "linear-gradient(90deg, #ffc3a0, #ffafbd)",
+                  boxShadow: "0 2px 8px rgba(255, 175, 189, 0.3)",
+                  animation: "slideDown 0.4s ease both"
+                }} />
+              )}
+            </button>
+          );
+        })
+      }
+    </div >
   );
 }
 
@@ -566,6 +713,7 @@ function SettingsScreen({
   weeklyReflection,
   emotionalPatterns,
   autoSuggestions,
+  lastSavedAt,
   lockEnabled,
   setLockEnabled,
   lockPin,
@@ -706,9 +854,26 @@ function SettingsScreen({
     handlePinSave();
   };
 
+  const formatSavedAt = (value) => {
+    if (!value) return "Not saved yet";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Unknown";
+    return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
-    <div style={{ padding: "24px 20px 0" }}>
+    <div style={{ padding: "32px 24px 90px" }}>
       <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 16 }}>Privacy & Export</h2>
+
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 6 }}>Data status</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 10 }}>Last saved: {formatSavedAt(lastSavedAt)}</p>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Tasks: {tasks.length}</span>
+          <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Notes: {notes.length}</span>
+          <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Daily notes: {Object.keys(dailyNotes || {}).length}</span>
+        </div>
+      </div>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
@@ -836,8 +1001,8 @@ function TasksScreen({ tasks, setTasks, onTaskAdded }) {
   });
 
   return (
-    <div style={{ padding: "24px 20px 0" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+    <div style={{ padding: "32px 24px 90px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Tasks</h2>
         <button onClick={() => setShowForm(!showForm)} style={{ width: 42, height: 42, borderRadius: 21, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(255, 175, 189, 0.25)" }}>
           <Icon name="plus" size={20} color="#fff" sw={2.5} />
@@ -1005,8 +1170,8 @@ function HabitsScreen({ habits, setHabits }) {
     .sort((a, b) => a.reminderTime.localeCompare(b.reminderTime));
 
   return (
-    <div style={{ padding: "24px 20px 0" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+    <div style={{ padding: "32px 24px 90px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div>
           <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Habits</h2>
           <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginTop: 4 }}>{doneToday} completed today</p>
@@ -1229,7 +1394,7 @@ function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, mood
   const today = todayKey();
 
   return (
-    <div style={{ padding: "24px 20px 0" }}>
+    <div style={{ padding: "32px 24px 90px" }}>
       <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 16 }}>Wellness</h2>
 
       <div style={{ display: "flex", gap: 5, marginBottom: 16, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
@@ -1572,10 +1737,10 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes }) {
   };
 
   return (
-    <div style={{ padding: "24px 20px 0" }}>
-      <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 18 }}>Memories</h2>
+    <div style={{ padding: "32px 24px 90px" }}>
+      <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 24 }}>Memories</h2>
 
-      <div style={{ display: "flex", gap: 6, marginBottom: 16, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4 }}>
+      <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4 }}>
         {["photos", "notes"].map(t => (
           <button key={t} onClick={() => setSub(t)} style={{ flex: 1, background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s" }}>{t}</button>
         ))}
@@ -1589,10 +1754,10 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes }) {
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {photos.slice().reverse().map(ph => (
               <div key={ph.id} className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
-                <img src={ph.dataUrl} alt={ph.caption} style={{ width: "100%", height: 140, objectFit: "cover" }} />
+                <img src={ph.dataUrl} alt={ph.caption} style={{ width: "100%", height: 160, objectFit: "cover" }} />
                 <div style={{ padding: "8px 10px" }}>
                   <p style={{ fontSize: 12, color: "#5a4a42", fontWeight: 500 }}>{ph.caption || "Untitled"}</p>
                   <p style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>{fmtDate(ph.date)}</p>
@@ -1641,8 +1806,8 @@ function MeaningfulMomentsScreen({ meaningfulMoments, setMeaningfulMoments }) {
   };
 
   return (
-    <div style={{ padding: "24px 20px 0" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+    <div style={{ padding: "32px 24px 90px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Meaningful Moments</h2>
         <button onClick={() => setShowForm(!showForm)} style={{ width: 42, height: 42, borderRadius: 21, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
           <Icon name="plus" size={20} color="#fff" sw={2.5} />
@@ -1709,11 +1874,25 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, userName }) {
     setLoading(false);
   };
 
+  const clearChat = () => {
+    if (!chatMsgs.length) return;
+    if (window.confirm("Clear this chat history?")) {
+      setChatMsgs([]);
+      setInput("");
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 90px)" }}>
-      <div style={{ padding: "24px 20px 12px" }}>
-        <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Chat</h2>
-        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>I'm here, just for you</p>
+      <div style={{ padding: "32px 24px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div>
+          <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Chat</h2>
+          <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>I'm here, just for you</p>
+        </div>
+        <button onClick={clearChat} disabled={!chatMsgs.length} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 154, 118, 0.12)", border: "1px solid rgba(255, 154, 118, 0.35)", color: "#ff9a76", fontSize: 12, fontWeight: 600, cursor: chatMsgs.length ? "pointer" : "default", opacity: chatMsgs.length ? 1 : 0.5 }}>
+          Clear chat
+        </button>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }}>
         {chatMsgs.length === 0 && (
@@ -1761,23 +1940,9 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
   const [noteText, setNoteText] = useState("");
 
   const dateKey = (date) => localDateKey(date);
-  const utcDateKey = (date) => date.toISOString().slice(0, 10);
-  const shiftDate = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
   const getNoteForDate = (date) => {
-    const candidates = [
-      dateKey(date),
-      utcDateKey(date),
-      dateKey(shiftDate(date, -1)),
-      dateKey(shiftDate(date, 1))
-    ];
-
-    for (const key of candidates) {
-      if (dailyNotes[key]) {
-        return dailyNotes[key];
-      }
-    }
-
-    return "";
+    const localKey = dateKey(date);
+    return dailyNotes[localKey] || "";
   };
 
   useEffect(() => {
@@ -1844,7 +2009,7 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
   const goToToday = () => { const t = new Date(); setCurrentMonth(t); setSelectedDate(t); };
 
   return (
-    <div style={{ padding: "24px 20px 0" }}>
+    <div style={{ padding: "32px 24px 90px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Daily Notes</h2>
         <button onClick={goToToday} style={{ padding: "8px 16px", borderRadius: 12, background: "rgba(168, 230, 207, 0.15)", border: "1px solid rgba(168, 230, 207, 0.3)", color: "#a8e6cf", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
