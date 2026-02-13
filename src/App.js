@@ -267,28 +267,28 @@ export default function App() {
   }, []);
 
   // ── Persist ──
-  useEffect(() => { if (booted) save("userName", userName); }, [userName, booted]);
-  useEffect(() => { if (booted) save("tasks", tasks); }, [tasks, booted]);
-  useEffect(() => { if (booted) save("habits", habits); }, [habits, booted]);
-  useEffect(() => { if (booted) save("notes", notes); }, [notes, booted]);
-  useEffect(() => { if (booted) save("photos", photos); }, [photos, booted]);
-  useEffect(() => { if (booted) save("meaningfulMoments", meaningfulMoments); }, [meaningfulMoments, booted]);
-  useEffect(() => { if (booted) save("chatMsgs", chatMsgs); }, [chatMsgs, booted]);
-  useEffect(() => { if (booted) save("dailyCheckIn", dailyCheckIn); }, [dailyCheckIn, booted]);
-  useEffect(() => { if (booted) save("lastCheckInDate", lastCheckInDate); }, [lastCheckInDate, booted]);
-  useEffect(() => { if (booted) save("dailyNotes", dailyNotes); }, [dailyNotes, booted]);
-  useEffect(() => { if (booted) save("voiceNotes", voiceNotes); }, [voiceNotes, booted]);
-  useEffect(() => { if (booted) save("gratitude", gratitude); }, [gratitude, booted]);
-  useEffect(() => { if (booted) save("energyLog", energyLog); }, [energyLog, booted]);
-  useEffect(() => { if (booted) save("moodLog", moodLog); }, [moodLog, booted]);
-  useEffect(() => { if (booted) save("affirmations", affirmations); }, [affirmations, booted]);
-  useEffect(() => { if (booted) save("weeklyReflection", weeklyReflection); }, [weeklyReflection, booted]);
-  useEffect(() => { if (booted) save("emotionalPatterns", emotionalPatterns); }, [emotionalPatterns, booted]);
-  useEffect(() => { if (booted) save("autoSuggestions", autoSuggestions); }, [autoSuggestions, booted]);
-  useEffect(() => { if (booted) save("lockEnabled", lockEnabled); }, [lockEnabled, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("userName", JSON.stringify(userName)); }, [userName, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("tasks", JSON.stringify(tasks)); }, [tasks, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("habits", JSON.stringify(habits)); }, [habits, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("notes", JSON.stringify(notes)); }, [notes, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("photos", JSON.stringify(photos)); }, [photos, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("meaningfulMoments", JSON.stringify(meaningfulMoments)); }, [meaningfulMoments, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("chatMsgs", JSON.stringify(chatMsgs)); }, [chatMsgs, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("dailyCheckIn", JSON.stringify(dailyCheckIn)); }, [dailyCheckIn, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("lastCheckInDate", JSON.stringify(lastCheckInDate)); }, [lastCheckInDate, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("dailyNotes", JSON.stringify(dailyNotes)); }, [dailyNotes, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("voiceNotes", JSON.stringify(voiceNotes)); }, [voiceNotes, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("gratitude", JSON.stringify(gratitude)); }, [gratitude, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("energyLog", JSON.stringify(energyLog)); }, [energyLog, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("moodLog", JSON.stringify(moodLog)); }, [moodLog, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("affirmations", JSON.stringify(affirmations)); }, [affirmations, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("weeklyReflection", JSON.stringify(weeklyReflection)); }, [weeklyReflection, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("emotionalPatterns", JSON.stringify(emotionalPatterns)); }, [emotionalPatterns, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("autoSuggestions", JSON.stringify(autoSuggestions)); }, [autoSuggestions, booted]);
+  useEffect(() => { if (booted) localStorage.setItem("lockEnabled", JSON.stringify(lockEnabled)); }, [lockEnabled, booted]);
   useEffect(() => {
     if (!booted) return;
-    save("lockPin", lockPin);
+    localStorage.setItem("lockPin", JSON.stringify(lockPin));
     if (lockPin) {
       try {
         localStorage.setItem("lockPinBackup", lockPin);
@@ -302,7 +302,7 @@ export default function App() {
     if (!booted) return;
     const ts = now().toISOString();
     setLastSavedAt(ts);
-    save("lastSavedAt", ts);
+    localStorage.setItem("lastSavedAt", JSON.stringify(ts));
   }, [
     booted,
     userName,
