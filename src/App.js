@@ -420,7 +420,7 @@ export default function App() {
     check();
     const iv = setInterval(check, 30000);
     return () => clearInterval(iv);
-  }, [tasks, activeTaskAlarm, startTaskAlarm]);
+  }, [tasks, activeTaskAlarm, startTaskAlarm, triggerAlarmSignal]);
 
   useEffect(() => {
     if (!activeTaskAlarm) return;
