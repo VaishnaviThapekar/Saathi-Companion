@@ -117,7 +117,6 @@ const normalizeLockState = (enabled, pin) => {
 };
 
 const load = async (k, fb) => { try { const r = await window.storage.get(k); return r ? JSON.parse(r.value) : fb; } catch { return fb; } };
-const save = async (k, v) => { try { await window.storage.set(k, JSON.stringify(v)); } catch (e) { console.error(e); } };
 
 const callAI = async (prompt, maxTokens = 800) => {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
