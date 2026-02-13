@@ -260,7 +260,6 @@ export default function App() {
       setLastSavedAt(lsa);
       const { normalizedEnabled, normalizedPin } = normalizeLockState(le, lp);
       setLockEnabled(normalizedEnabled); setLockPin(normalizedPin);
-      if (le && lp) setIsLocked(true);
 
       setBooted(true);
       if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
