@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import HomeScreen from "./components/screens/HomeScreen";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -361,20 +361,20 @@ export default function App() {
     return () => clearInterval(iv);
   }, [booted, habits]);
 
-  const triggerAlarmSignal = () => {
+  const triggerAlarmSignal = useCallback(() => {
     playNotificationSound();
     if ("vibrate" in navigator) {
       navigator.vibrate([200, 100, 200]);
     }
-  };
+  }, []);
 
-  const startTaskAlarm = (task) => {
+  const startTaskAlarm = useCallback((task) => {
     if (alarmIntervalRef.current) clearInterval(alarmIntervalRef.current);
     if (alarmTimeoutRef.current) clearTimeout(alarmTimeoutRef.current);
     setActiveTaskAlarm({ id: task.id, title: task.title, dueDate: task.dueDate, dueTime: task.dueTime, snoozedUntil: null });
     triggerAlarmSignal();
     alarmIntervalRef.current = setInterval(triggerAlarmSignal, 4000);
-  };
+  }, [triggerAlarmSignal]);
 
   const snoozeTaskAlarm = (minutes) => {
     if (!activeTaskAlarm) return;
@@ -420,7 +420,7 @@ export default function App() {
     check();
     const iv = setInterval(check, 30000);
     return () => clearInterval(iv);
-  }, [tasks, activeTaskAlarm]);
+  }, [tasks, activeTaskAlarm, startTaskAlarm]);
 
   useEffect(() => {
     if (!activeTaskAlarm) return;
@@ -1939,15 +1939,15 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [noteText, setNoteText] = useState("");
 
-  const dateKey = (date) => localDateKey(date);
-  const getNoteForDate = (date) => {
+  const dateKey = useCallback((date) => localDateKey(date), []);
+  const getNoteForDate = useCallback((date) => {
     const localKey = dateKey(date);
     return dailyNotes[localKey] || "";
-  };
+  }, [dailyNotes, dateKey]);
 
   useEffect(() => {
     setNoteText(getNoteForDate(selectedDate));
-  }, [selectedDate, dailyNotes]);
+  }, [selectedDate, getNoteForDate]);
 
   const saveNote = () => {
     const key = dateKey(selectedDate);
