@@ -17,21 +17,24 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
     };
     const utcDateKey = (date) => date.toISOString().slice(0, 10);
     const shiftDate = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
-    const getNoteForDate = (date) => {
-        const candidates = [
-            dateKey(date),
-            utcDateKey(date),
-            dateKey(shiftDate(date, -1)),
-            dateKey(shiftDate(date, 1))
-        ];
-
-        for (const key of candidates) {
-            if (dailyNotes[key]) {
-                return dailyNotes[key];
+    const getCandidateKeys = (date) => [
+        dateKey(date),
+        utcDateKey(date),
+        dateKey(shiftDate(date, -1)),
+        dateKey(shiftDate(date, 1))
+    ];
+    const findNoteKeyForDate = (date, notes) => {
+        for (const key of getCandidateKeys(date)) {
+            if (notes[key]) {
+                return key;
             }
         }
 
         return "";
+    };
+    const getNoteForDate = (date) => {
+        const key = findNoteKeyForDate(date, dailyNotes);
+        return key ? dailyNotes[key] : "";
     };
 
     // Load note for selected date
@@ -42,14 +45,23 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
     // Save note for selected date
     const saveNote = () => {
         const key = dateKey(selectedDate);
-        if (noteText.trim()) {
-            setDailyNotes(prev => ({ ...prev, [key]: noteText.trim() }));
-        } else {
-            // Remove note if empty
-            const updated = { ...dailyNotes };
-            delete updated[key];
-            setDailyNotes(updated);
-        }
+        const trimmed = noteText.trim();
+
+        setDailyNotes(prev => {
+            const updated = { ...prev };
+            const existingKey = findNoteKeyForDate(selectedDate, updated);
+            if (existingKey && existingKey !== key) {
+                delete updated[existingKey];
+            }
+
+            if (trimmed) {
+                updated[key] = trimmed;
+            } else {
+                delete updated[key];
+            }
+
+            return updated;
+        });
     };
 
     // Calculate days in month
@@ -82,7 +94,7 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
             const key = dateKey(date);
             const isSelected = dateKey(selectedDate) === key;
             const isToday = todayKey === key;
-            const hasNote = dailyNotes[key];
+            const hasNote = Boolean(findNoteKeyForDate(date, dailyNotes));
 
             days.push(
                 <button
@@ -381,12 +393,14 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                         Save Note
                     </button>
 
-                    {dailyNotes[dateKey(selectedDate)] && (
+                    {Boolean(findNoteKeyForDate(selectedDate, dailyNotes)) && (
                         <button
                             onClick={() => {
                                 setNoteText("");
+                                const existingKey = findNoteKeyForDate(selectedDate, dailyNotes);
+                                if (!existingKey) return;
                                 const updated = { ...dailyNotes };
-                                delete updated[dateKey(selectedDate)];
+                                delete updated[existingKey];
                                 setDailyNotes(updated);
                             }}
                             style={{
