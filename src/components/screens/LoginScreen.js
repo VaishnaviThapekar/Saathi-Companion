@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { loginUser, registerUser } from "../../utils/auth";
 
 // ═══════════════════════════════════════════════════════════════════════
 // LOGIN SCREEN COMPONENT
@@ -18,8 +19,6 @@ export default function LoginScreen({ onLoginSuccess, Icon }) {
         setLoading(true);
 
         try {
-            const { loginUser, registerUser } = await import("../../utils/auth");
-
             if (isLogin) {
                 await loginUser(username, password);
             } else {
@@ -53,7 +52,7 @@ export default function LoginScreen({ onLoginSuccess, Icon }) {
                     <div style={styles.iconWrapper}>
                         <Icon name="heart" size={48} color="#ff9a76" />
                     </div>
-                    <h1 style={styles.title}>AI Companion</h1>
+                    <h1 style={styles.title}>Your Companion</h1>
                     <p style={styles.subtitle}>Your Personal Life Assistant</p>
                 </div>
             </div>
