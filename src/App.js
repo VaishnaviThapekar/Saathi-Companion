@@ -511,7 +511,8 @@ export default function App() {
 
   if (!booted) return <div style={{ background: "linear-gradient(135deg, #fef3e2 0%, #fde8f4 50%, #e8f5e9 100%)", height: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}><span style={{ color: "#8b7e74", fontSize: 15 }}>Loading…</span></div>;
   if (lockEnabled && lockPin && isLocked) return <LockScreen onUnlock={() => setIsLocked(false)} lockPin={lockPin} onReset={() => { setLockEnabled(false); setLockPin(""); setIsLocked(false); }} />;
-  if (!userName) return <NameSetup onSet={setUserName} />;
+
+  // Authentication check first, then name setup, then main app
 
   const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, onLogout: () => { logout(); setAuthenticated(false); } };
 
@@ -534,6 +535,8 @@ export default function App() {
           onLoginSuccess={() => setAuthenticated(true)}
           Icon={Icon}
         />
+      ) : !userName ? (
+        <NameSetup onSet={setUserName} />
       ) : (
         <div className="app-shell">
           {activeTaskAlarm && (
