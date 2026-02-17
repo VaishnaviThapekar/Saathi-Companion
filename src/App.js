@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import HomeScreen from "./components/screens/HomeScreen";
+import LoginScreen from "./components/screens/LoginScreen";
+import { isAuthenticated, logout } from "./utils/auth";
 
 // ═══════════════════════════════════════════════════════════════════════
 // STORAGE MOCK - Makes name & data persist permanently
@@ -185,6 +187,7 @@ const playNotificationSound = () => {
 // ROOT APP
 // ═══════════════════════════════════════════════════════════════════════
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(() => isAuthenticated());
   const [tab, setTab] = useState("home");
   const [userName, setUserName] = useState(() => {
     try {
@@ -510,7 +513,7 @@ export default function App() {
   if (lockEnabled && lockPin && isLocked) return <LockScreen onUnlock={() => setIsLocked(false)} lockPin={lockPin} onReset={() => { setLockEnabled(false); setLockPin(""); setIsLocked(false); }} />;
   if (!userName) return <NameSetup onSet={setUserName} />;
 
-  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt };
+  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, onLogout: () => { logout(); setAuthenticated(false); } };
 
   const screens = {
     home: <HomeScreen {...shared} />,
@@ -525,28 +528,37 @@ export default function App() {
   };
 
   return (
-    <div className="app-shell">
-      {activeTaskAlarm && (
-        <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.95)", border: "1px solid rgba(255, 195, 160, 0.5)", borderRadius: 16, padding: "12px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)", zIndex: 250, width: "calc(100% - 32px)", maxWidth: 420, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <strong style={{ fontSize: 13 }}>Task due now</strong>
-            <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.8)" }}>{activeTaskAlarm.title}</span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => { setTasks(p => p.map(t => t.id === activeTaskAlarm.id ? { ...t, done: true } : t)); dismissTaskAlarm(); }} style={{ padding: "6px 10px", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Mark done</button>
-            <button onClick={() => snoozeTaskAlarm(5)} style={{ padding: "6px 10px", borderRadius: 10, background: "rgba(139, 126, 116, 0.12)", border: "none", color: "rgba(139, 126, 116, 0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Snooze</button>
-            <button onClick={dismissTaskAlarm} style={{ padding: "6px 10px", borderRadius: 10, background: "rgba(139, 126, 116, 0.12)", border: "none", color: "rgba(139, 126, 116, 0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Dismiss</button>
-          </div>
+    <>
+      {!authenticated ? (
+        <LoginScreen
+          onLoginSuccess={() => setAuthenticated(true)}
+          Icon={Icon}
+        />
+      ) : (
+        <div className="app-shell">
+          {activeTaskAlarm && (
+            <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.95)", border: "1px solid rgba(255, 195, 160, 0.5)", borderRadius: 16, padding: "12px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)", zIndex: 250, width: "calc(100% - 32px)", maxWidth: 420, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <strong style={{ fontSize: 13 }}>Task due now</strong>
+                <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.8)" }}>{activeTaskAlarm.title}</span>
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => { setTasks(p => p.map(t => t.id === activeTaskAlarm.id ? { ...t, done: true } : t)); dismissTaskAlarm(); }} style={{ padding: "6px 10px", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Mark done</button>
+                <button onClick={() => snoozeTaskAlarm(5)} style={{ padding: "6px 10px", borderRadius: 10, background: "rgba(139, 126, 116, 0.12)", border: "none", color: "rgba(139, 126, 116, 0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Snooze</button>
+                <button onClick={dismissTaskAlarm} style={{ padding: "6px 10px", borderRadius: 10, background: "rgba(139, 126, 116, 0.12)", border: "none", color: "rgba(139, 126, 116, 0.8)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Dismiss</button>
+              </div>
+            </div>
+          )}
+          {toast && (
+            <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.9)", border: "1px solid rgba(255, 195, 160, 0.4)", borderRadius: 14, padding: "10px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)", zIndex: 200 }}>
+              {toast}
+            </div>
+          )}
+          <div style={{ paddingBottom: 90 }}>{screens[tab]}</div>
+          <BottomNav tab={tab} setTab={setTab} onLogout={() => { logout(); setAuthenticated(false); }} />
         </div>
       )}
-      {toast && (
-        <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.9)", border: "1px solid rgba(255, 195, 160, 0.4)", borderRadius: 14, padding: "10px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)", zIndex: 200 }}>
-          {toast}
-        </div>
-      )}
-      <div style={{ paddingBottom: 90 }}>{screens[tab]}</div>
-      <BottomNav tab={tab} setTab={setTab} />
-    </div>
+    </>
   );
 }
 
@@ -608,7 +620,7 @@ function LockScreen({ onUnlock, lockPin, onReset }) {
 // ═══════════════════════════════════════════════════════════════════════
 // BOTTOM NAV
 // ═══════════════════════════════════════════════════════════════════════
-function BottomNav({ tab, setTab }) {
+function BottomNav({ tab, setTab, onLogout }) {
   const tabs = [
     { id: "home", icon: "home", label: "Home" },
     { id: "tasks", icon: "tasks", label: "Tasks" },
@@ -643,7 +655,13 @@ function BottomNav({ tab, setTab }) {
           return (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => {
+                if (t.id === "settings" && tab === "settings") {
+                  // Long press or double click to logout - for now just open settings
+                } else {
+                  setTab(t.id);
+                }
+              }}
               className={`bottom-nav-btn${active ? " is-active" : ""}`}
               style={{
                 background: "none",
@@ -718,6 +736,7 @@ function SettingsScreen({
   setLockPin,
   setIsLocked,
   resetAccount,
+  onLogout,
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -981,6 +1000,16 @@ function SettingsScreen({
         <button onClick={() => {
           if (window.confirm("Delete all data and start fresh?")) resetAccount();
         }} style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "rgba(255, 154, 118, 0.15)", border: "1px solid rgba(255, 154, 118, 0.35)", color: "#ff9a76", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Delete account & logout</button>
+      </div>
+
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginTop: 16, border: "1px solid rgba(139, 126, 116, 0.2)" }}>
+        <p style={{ fontSize: 14, color: "#8b7e74", fontWeight: 600, marginBottom: 6 }}>Account</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 10 }}>Sign out from this device.</p>
+        <button onClick={() => {
+          if (window.confirm("Sign out from this device?")) {
+            onLogout();
+          }
+        }} style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "rgba(139, 126, 116, 0.1)", border: "1px solid rgba(139, 126, 116, 0.2)", color: "rgba(139, 126, 116, 0.7)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
       </div>
     </div>
   );
