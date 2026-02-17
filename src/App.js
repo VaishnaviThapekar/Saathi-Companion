@@ -470,6 +470,8 @@ export default function App() {
 
   const resetAccount = () => {
     localStorage.clear();
+    logout();
+    setAuthenticated(false);
     setUserName("");
     setTasks([]);
     setHabits([]);
