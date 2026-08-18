@@ -128,7 +128,7 @@ export default function HomeScreen({
                     animation: "float 8s ease-in-out infinite 1s"
                 }} />
 
-                {/* LOGO SECTION */}
+                {/* LOGO SECTION WITH DYNAMIC EMOTIONAL AURA VISUALIZER */}
                 <div style={{
                     display: "flex",
                     flexDirection: "column",
@@ -137,22 +137,60 @@ export default function HomeScreen({
                     zIndex: 2,
                     textAlign: "center"
                 }}>
-                    {/* Animated Logo Circle */}
-                    <div style={{
-                        width: 90,
-                        height: 90,
-                        borderRadius: 45,
-                        background: "linear-gradient(135deg, #ffffff 0%, rgba(255, 255, 255, 0.95) 100%)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        marginBottom: 18,
-                        boxShadow: "0 12px 40px rgba(255, 175, 189, 0.35), inset 0 2px 8px rgba(255, 255, 255, 0.8)",
-                        border: "3px solid rgba(255, 255, 255, 0.6)",
-                        animation: "glowPulse 3s ease-in-out infinite"
-                    }}>
-                        <Icon name="heart" size={48} color="#ff9a76" sw={2} />
-                    </div>
+                {(() => {
+                    const hour = new Date().getHours();
+                    const currentMood = todayCheckIn?.mood;
+                    let auraLabel = "🌸 Calm & Centered Aura";
+                    let auraGradient = "linear-gradient(135deg, #ffc3a0, #ffafbd, #c3aed6)";
+                    let auraShadow = "0 0 50px rgba(255, 175, 189, 0.6)";
+
+                    if (currentMood === "amazing" || currentMood === "good") {
+                        auraLabel = "✨ Joyful & Golden Aura";
+                        auraGradient = "linear-gradient(135deg, #a8e6cf, #ffd3b6, #ffafbd)";
+                        auraShadow = "0 0 50px rgba(168, 230, 207, 0.75)";
+                    } else if (currentMood === "struggling" || currentMood === "overwhelmed") {
+                        auraLabel = "🌿 Gentle Healing Aura";
+                        auraGradient = "linear-gradient(135deg, #c3aed6, #b4d4ff, #ffafbd)";
+                        auraShadow = "0 0 50px rgba(195, 174, 214, 0.75)";
+                    } else if (hour >= 21 || hour < 4) {
+                        auraLabel = "🌌 Night Rest Aura";
+                        auraGradient = "linear-gradient(135deg, #4a3b5c, #6c527e, #ffafbd)";
+                        auraShadow = "0 0 50px rgba(74, 59, 92, 0.85)";
+                    }
+
+                    return (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 14 }}>
+                            <div style={{
+                                width: 96,
+                                height: 96,
+                                borderRadius: 48,
+                                background: auraGradient,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                marginBottom: 12,
+                                boxShadow: `${auraShadow}, inset 0 2px 8px rgba(255, 255, 255, 0.8)`,
+                                border: "3px solid rgba(255, 255, 255, 0.7)",
+                                animation: "glowPulse 2.5s ease-in-out infinite"
+                            }}>
+                                <Icon name="heart" size={48} color="#fff" sw={2} />
+                            </div>
+                            <span style={{
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#ffffff",
+                                background: "rgba(255, 255, 255, 0.25)",
+                                backdropFilter: "blur(12px)",
+                                padding: "4px 14px",
+                                borderRadius: 20,
+                                boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                                letterSpacing: "0.5px"
+                            }}>
+                                {auraLabel}
+                            </span>
+                        </div>
+                    );
+                })()}
 
                     {/* App Name with Serif Font */}
                     <h1 style={{

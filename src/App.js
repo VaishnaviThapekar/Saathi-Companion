@@ -2010,9 +2010,196 @@ function VoicePanel({ voiceNotes, setVoiceNotes }) {
   );
 }
 
+function MemoryConstellationPanel({ photos, notes, moodLog, meaningfulMoments }) {
+  const [selectedStar, setSelectedStar] = useState(null);
+
+  const stars = [
+    ...(photos || []).map(p => ({ id: p.id, title: p.caption || "Photo Memory", date: p.date, type: "photo", emoji: "📸" })),
+    ...(notes || []).map(n => ({ id: n.id, title: n.title || "Memory Note", date: n.date, type: "note", emoji: "📝" })),
+    ...(meaningfulMoments || []).map(m => ({ id: m.id, title: m.text, date: m.date, type: "moment", emoji: "🌟" }))
+  ].slice(-12);
+
+  return (
+    <div style={{
+      background: "linear-gradient(135deg, #1a1625 0%, #2d2438 50%, #4a3b5c 100%)",
+      borderRadius: 20,
+      padding: 20,
+      color: "#fff",
+      boxShadow: "0 12px 36px rgba(0,0,0,0.3)",
+      position: "relative",
+      minHeight: 320,
+      overflow: "hidden"
+    }}>
+      <div style={{ textAlign: "center", marginBottom: 16 }}>
+        <h3 style={{ fontSize: 18, fontFamily: "'Crimson Text', serif", fontStyle: "italic", margin: 0, color: "#ffd3b6" }}>🌌 Memory Constellation Sky</h3>
+        <p style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.7)", marginTop: 4 }}>Tap any glowing star to reveal a saved memory</p>
+      </div>
+
+      <div style={{ position: "relative", height: 210, border: "1px dashed rgba(255,255,255,0.15)", borderRadius: 16, background: "radial-gradient(circle at 50% 50%, rgba(255, 195, 160, 0.1), transparent 70%)" }}>
+        {stars.length === 0 ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "rgba(255,255,255,0.5)", fontSize: 13, fontStyle: "italic" }}>
+            No stars in your sky yet. Save a note or moment! ✨
+          </div>
+        ) : (
+          stars.map((st, idx) => {
+            const left = 15 + (idx * 27) % 70;
+            const top = 20 + (idx * 33) % 65;
+            return (
+              <button
+                key={st.id}
+                onClick={() => setSelectedStar(st)}
+                style={{
+                  position: "absolute",
+                  left: `${left}%`,
+                  top: `${top}%`,
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center"
+                }}
+              >
+                <div style={{ width: 32, height: 32, borderRadius: 16, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 20px #ffc3a0", fontSize: 14 }}>
+                  {st.emoji}
+                </div>
+                <span style={{ fontSize: 9, color: "rgba(255,255,255,0.8)", marginTop: 2, whiteSpace: "nowrap" }}>{st.title.slice(0, 10)}...</span>
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {selectedStar && (
+        <div className="glass" style={{ marginTop: 14, borderRadius: 14, padding: 14, background: "rgba(255, 255, 255, 0.95)", color: "#5a4a42" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#ff9a76" }}>{selectedStar.emoji} {selectedStar.type.toUpperCase()} STAR</span>
+            <button onClick={() => setSelectedStar(null)} style={{ background: "none", border: "none", color: "rgba(139, 126, 116, 0.6)", fontSize: 12, cursor: "pointer" }}>✕ Close</button>
+          </div>
+          <p style={{ fontSize: 14, fontWeight: 600, margin: 0 }}>{selectedStar.title}</p>
+          <p style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.5)", marginTop: 4 }}>Recorded on {fmtDate(selectedStar.date)}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TimeCapsulePanel({ timeCapsules, setTimeCapsules }) {
+  const [showForm, setShowForm] = useState(false);
+  const [title, setTitle] = useState("");
+  const [letterText, setLetterText] = useState("");
+  const [unlockDays, setUnlockDays] = useState(7);
+
+  const createCapsule = () => {
+    if (!letterText.trim()) return;
+    const unlockDate = new Date();
+    unlockDate.setDate(unlockDate.getDate() + Number(unlockDays));
+
+    const newCap = {
+      id: uid(),
+      title: title.trim() || "Letter to Future Self",
+      text: letterText.trim(),
+      createdAt: now().toISOString(),
+      unlockDate: unlockDate.toISOString(),
+      unsealed: false
+    };
+
+    setTimeCapsules(p => [...p, newCap]);
+    setTitle("");
+    setLetterText("");
+    setShowForm(false);
+  };
+
+  const openCapsule = (cap) => {
+    playChimeSound(600, 0.5);
+    setTimeCapsules(p => p.map(c => c.id === cap.id ? { ...c, unsealed: true } : c));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, color: "#5a4a42", margin: 0 }}>💌 Time Capsule Letters</h3>
+          <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Write secret messages to unlock in the future</p>
+        </div>
+        <button onClick={() => setShowForm(!showForm)} style={{ padding: "8px 14px", borderRadius: 12, background: "linear-gradient(135deg, #c3aed6, #ffafbd)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          + New Capsule
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", marginBottom: 10 }}>Write to your future self ✍️</p>
+          <input placeholder="Letter title (e.g. Open when feeling proud)..." value={title} onChange={e => setTitle(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255, 195, 160, 0.3)", fontSize: 13, marginBottom: 10, outline: "none" }} />
+          <textarea rows={4} placeholder="Dear future me..." value={letterText} onChange={e => setLetterText(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255, 195, 160, 0.3)", fontSize: 13, marginBottom: 10, outline: "none", resize: "none" }} />
+
+          <label style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", display: "block", marginBottom: 6 }}>Unlock after:</label>
+          <select value={unlockDays} onChange={e => setUnlockDays(e.target.value)} style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255, 195, 160, 0.3)", fontSize: 12, marginBottom: 14, outline: "none" }}>
+            <option value={1}>1 Day (Tomorrow)</option>
+            <option value={7}>7 Days (Next Week)</option>
+            <option value={30}>30 Days (Next Month)</option>
+            <option value={90}>90 Days (3 Months)</option>
+          </select>
+
+          <button onClick={createCapsule} style={{ width: "100%", padding: "11px 0", borderRadius: 12, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            🔒 Seal Time Capsule
+          </button>
+        </div>
+      )}
+
+      {timeCapsules.length === 0 ? (
+        <div className="glass" style={{ borderRadius: 16, padding: "24px 20px", textAlign: "center" }}>
+          <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 13, margin: 0 }}>
+            No sealed time capsules yet. Tap "+ New Capsule" to write your first message to the future! 💌
+          </p>
+        </div>
+      ) : (
+        timeCapsules.map(cap => {
+          const isReady = new Date(cap.unlockDate) <= new Date();
+          return (
+            <div key={cap.id} className="glass" style={{ borderRadius: 14, padding: 14, marginBottom: 10, borderLeft: `4px solid ${isReady ? "#a8e6cf" : "#c3aed6"}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "#5a4a42", margin: 0 }}>{cap.title}</p>
+                  <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)", marginTop: 2 }}>
+                    {isReady ? "✨ Ready to open!" : `🔒 Sealed until ${fmtDate(cap.unlockDate)}`}
+                  </p>
+                </div>
+                {isReady && !cap.unsealed && (
+                  <button onClick={() => openCapsule(cap)} style={{ padding: "8px 14px", borderRadius: 10, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    Unseal 🔓
+                  </button>
+                )}
+              </div>
+              {cap.unsealed && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(139,126,116,0.1)", fontSize: 13, color: "#5a4a42", lineHeight: 1.5 }}>
+                  "{cap.text}"
+                </div>
+              )}
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
 // MEMORIES & MOMENTS SCREENS - Keep from previous version
-function MemoriesScreen({ photos, setPhotos, notes, setNotes }) {
+function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments, moodLog }) {
   const [sub, setSub] = useState("photos");
+  const [timeCapsules, setTimeCapsules] = useState(() => {
+    try {
+      const saved = localStorage.getItem("saathi_time_capsules");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem("saathi_time_capsules", JSON.stringify(timeCapsules));
+  }, [timeCapsules]);
+
   const fileInputRef = useRef(null);
 
   const handlePhotoUpload = (e) => {
@@ -2044,18 +2231,21 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes }) {
               Memories & Scrapbook
             </h2>
             <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
-              Photo gallery & written memory notes
+              Photo gallery, constellation sky & time capsule
             </p>
           </div>
         </div>
       </div>
 
       <div style={{ padding: "0 24px" }}>
-        <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4 }}>
-          {["photos", "notes"].map(t => (
-            <button key={t} onClick={() => setSub(t)} style={{ flex: 1, background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s" }}>{t}</button>
+        <div style={{ display: "flex", gap: 5, marginBottom: 20, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
+          {["photos", "notes", "constellation", "capsule"].map(t => (
+            <button key={t} onClick={() => setSub(t)} style={{ flex: "0 0 auto", background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "7px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s" }}>{t}</button>
           ))}
         </div>
+
+        {sub === "constellation" && <MemoryConstellationPanel photos={photos} notes={notes} moodLog={moodLog} meaningfulMoments={meaningfulMoments} />}
+        {sub === "capsule" && <TimeCapsulePanel timeCapsules={timeCapsules} setTimeCapsules={setTimeCapsules} />}
 
       {sub === "photos" && (
         <div>
