@@ -2,6 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import HomeScreen from "./components/screens/HomeScreen";
 import LoginScreen from "./components/screens/LoginScreen";
 import { isAuthenticated, logout } from "./utils/auth";
+import { detectActionableSuggestions } from "./utils/ai";
+import { playChimeSound } from "./services/soundService";
 
 // ═══════════════════════════════════════════════════════════════════════
 // STORAGE MOCK - Makes name & data persist permanently
@@ -884,8 +886,28 @@ function SettingsScreen({
   };
 
   return (
-    <div style={{ padding: "32px 24px 90px" }}>
-      <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 16 }}>Privacy & Export</h2>
+    <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #8b7e74 0%, #c3aed6 50%, #ffafbd 100%)",
+        padding: "32px 24px 36px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 24,
+        boxShadow: "0 12px 40px rgba(139, 126, 116, 0.25)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+              Privacy & Settings
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+              App PIN lock, data status & backup exports
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: "0 24px" }}>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 6 }}>Data status</p>
@@ -895,6 +917,30 @@ function SettingsScreen({
           <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Notes: {notes.length}</span>
           <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Daily notes: {Object.keys(dailyNotes || {}).length}</span>
         </div>
+      </div>
+
+      {/* SAATHI MEMORY BANK CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+          <span style={{ fontSize: 18 }}>🧠</span>
+          <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600 }}>Saathi Memory Bank</p>
+        </div>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.65)", lineHeight: 1.5, marginBottom: 12 }}>
+          What Saathi remembers about your goals and proud moments:
+        </p>
+        {meaningfulMoments && meaningfulMoments.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {meaningfulMoments.slice(-4).reverse().map(m => (
+              <div key={m.id} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.2)", fontSize: 12, color: "#5a4a42" }}>
+                <strong>{m.type === "proud" ? "🌟 Win: " : "💡 Note: "}</strong>{m.text}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", fontStyle: "italic" }}>
+            No saved memories yet. Chat with Saathi or record a moment to build your memory bank!
+          </p>
+        )}
       </div>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
@@ -1007,6 +1053,28 @@ function SettingsScreen({
         }} style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "rgba(255, 154, 118, 0.15)", border: "1px solid rgba(255, 154, 118, 0.35)", color: "#ff9a76", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Delete account & logout</button>
       </div>
 
+      {/* LOCAL NOTIFICATIONS CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginTop: 16 }}>
+        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>Browser Notifications 🔔</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 10 }}>
+          Receive desktop & mobile alerts for due tasks & habit reminders.
+        </p>
+        <button
+          onClick={() => {
+            if ("Notification" in window) {
+              Notification.requestPermission().then(p => {
+                alert(p === "granted" ? "🔔 Notifications Enabled!" : "Notifications status: " + p);
+              });
+            } else {
+              alert("Browser does not support notifications");
+            }
+          }}
+          style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+        >
+          Enable Browser Notifications 🔔
+        </button>
+      </div>
+
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginTop: 16, border: "1px solid rgba(139, 126, 116, 0.2)" }}>
         <p style={{ fontSize: 14, color: "#8b7e74", fontWeight: 600, marginBottom: 6 }}>Account</p>
         <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 10 }}>Sign out from this device.</p>
@@ -1015,6 +1083,7 @@ function SettingsScreen({
             onLogout();
           }
         }} style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "rgba(139, 126, 116, 0.1)", border: "1px solid rgba(139, 126, 116, 0.2)", color: "rgba(139, 126, 116, 0.7)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
+      </div>
       </div>
     </div>
   );
@@ -1026,6 +1095,21 @@ function SettingsScreen({
 // ═══════════════════════════════════════════════════════════════════════
 function TasksScreen({ tasks, setTasks, onTaskAdded }) {
   const [showForm, setShowForm] = useState(false);
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.done).length;
+  const pendingTasks = totalTasks - completedTasks;
+
+  const quickStarters = [
+    "📌 Organize workspace",
+    "💧 Drink 8 glasses of water",
+    "🧘 Take a 5-minute breather"
+  ];
+
+  const addQuickTask = (title) => {
+    setTasks(p => [...p, { id: uid(), title, done: false, createdAt: now().toISOString() }]);
+    if (onTaskAdded) onTaskAdded(`Added "${title}"`);
+  };
+
   const sorted = [...tasks].sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
     if (isOverdue(a) !== isOverdue(b)) return isOverdue(a) ? -1 : 1;
@@ -1033,17 +1117,84 @@ function TasksScreen({ tasks, setTasks, onTaskAdded }) {
   });
 
   return (
-    <div style={{ padding: "32px 24px 90px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Tasks</h2>
-        <button onClick={() => setShowForm(!showForm)} style={{ width: 42, height: 42, borderRadius: 21, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(255, 175, 189, 0.25)" }}>
-          <Icon name="plus" size={20} color="#fff" sw={2.5} />
-        </button>
+    <div style={{ padding: "0 0 90px 0", position: "relative" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #ffc3a0 0%, #ffafbd 50%, #c3aed6 100%)",
+        padding: "32px 24px 36px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 24,
+        boxShadow: "0 12px 40px rgba(255, 175, 189, 0.22)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+              Tasks & Priorities
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+              {completedTasks} of {totalTasks} completed today
+            </p>
+          </div>
+          <button onClick={() => setShowForm(!showForm)} style={{ width: 44, height: 44, borderRadius: 22, background: "rgba(255, 255, 255, 0.95)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 6px 16px rgba(0,0,0,0.1)" }}>
+            <Icon name="plus" size={22} color="#ff9a76" sw={2.5} />
+          </button>
+        </div>
       </div>
+
+      <div style={{ padding: "0 24px" }}>
+        {/* Summary Cards */}
+        <div className="glass" style={{ borderRadius: 16, padding: 14, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, textAlign: "center" }}>
+            <div>
+              <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Total</p>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "#5a4a42" }}>{totalTasks}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Pending</p>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "#ff9a76" }}>{pendingTasks}</p>
+            </div>
+            <div>
+              <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Done</p>
+              <p style={{ fontSize: 18, fontWeight: 700, color: "#a8e6cf" }}>{completedTasks}</p>
+            </div>
+          </div>
+        </div>
 
       {showForm && <TaskForm onAdd={t => { setTasks(p => [...p, t]); setShowForm(false); }} onTaskAdded={onTaskAdded} />}
 
-      {sorted.length === 0 ? <p style={{ color: "rgba(139, 126, 116, 0.4)", fontSize: 14, textAlign: "center", padding: "40px 0" }}>No tasks — enjoy the calm 🌸</p> :
+      {sorted.length === 0 ? (
+        <div className="glass" style={{ borderRadius: 16, padding: "24px 20px", textAlign: "center", marginBottom: 16 }}>
+          <Icon name="check" size={32} color="rgba(255, 195, 160, 0.4)" sw={1.2} />
+          <p style={{ color: "#5a4a42", fontSize: 15, fontWeight: 600, marginTop: 8, marginBottom: 4 }}>No tasks right now</p>
+          <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 12, marginBottom: 16 }}>Enjoy the calm, or pick a quick starter below:</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {quickStarters.map((st, idx) => (
+              <button
+                key={idx}
+                onClick={() => addQuickTask(st)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  background: "rgba(255, 255, 255, 0.7)",
+                  border: "1px solid rgba(255, 195, 160, 0.3)",
+                  color: "#5a4a42",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between"
+                }}
+              >
+                <span>{st}</span>
+                <span style={{ fontSize: 12, color: "#ff9a76", fontWeight: 600 }}>+ Add</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
         sorted.map(t => (
           <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : "#ffc3a0"}` }}>
             <button onClick={() => setTasks(p => p.map(x => x.id === t.id ? { ...x, done: !x.done } : x))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
@@ -1058,7 +1209,8 @@ function TasksScreen({ tasks, setTasks, onTaskAdded }) {
             </button>
           </div>
         ))
-      }
+      )}
+      </div>
     </div>
   );
 }
@@ -1202,16 +1354,31 @@ function HabitsScreen({ habits, setHabits }) {
     .sort((a, b) => a.reminderTime.localeCompare(b.reminderTime));
 
   return (
-    <div style={{ padding: "32px 24px 90px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div>
-          <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Habits</h2>
-          <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginTop: 4 }}>{doneToday} completed today</p>
+    <div style={{ padding: "0 0 90px 0", position: "relative" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #a8e6cf 0%, #dcedc1 50%, #ffc3a0 100%)",
+        padding: "32px 24px 36px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 24,
+        boxShadow: "0 12px 40px rgba(168, 230, 207, 0.22)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#5a4a42", margin: 0 }}>
+              Habits & Routines
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(90, 74, 66, 0.8)", marginTop: 4, fontWeight: 500 }}>
+              {doneToday} completed today · Keep your streak! 🔥
+            </p>
+          </div>
+          <button onClick={() => setShowForm(!showForm)} style={{ width: 44, height: 44, borderRadius: 22, background: "rgba(255, 255, 255, 0.95)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 6px 16px rgba(0,0,0,0.08)" }}>
+            <Icon name="plus" size={22} color="#5a4a42" sw={2.5} />
+          </button>
         </div>
-        <button onClick={() => setShowForm(!showForm)} style={{ width: 42, height: 42, borderRadius: 21, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 4px 12px rgba(168, 230, 207, 0.3)" }}>
-          <Icon name="plus" size={20} color="#fff" sw={2.5} />
-        </button>
       </div>
+
+      <div style={{ padding: "0 24px" }}>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <button onClick={() => setShowArchived(s => !s)} style={{ background: "none", border: "none", color: "rgba(139, 126, 116, 0.6)", fontSize: 12, cursor: "pointer" }}>
@@ -1222,9 +1389,44 @@ function HabitsScreen({ habits, setHabits }) {
       {showForm && <HabitForm onAdd={h => { setHabits(p => [...p, h]); setShowForm(false); }} />}
 
       {visibleHabits.length === 0 ? (
-        <p style={{ color: "rgba(139, 126, 116, 0.4)", fontSize: 14, textAlign: "center", padding: "40px 0" }}>
-          No habits yet. Start with something small.
-        </p>
+        <div className="glass" style={{ borderRadius: 16, padding: "24px 20px", textAlign: "center", marginBottom: 16 }}>
+          <Icon name="heart" size={32} color="rgba(255, 195, 160, 0.4)" sw={1.2} />
+          <p style={{ color: "#5a4a42", fontSize: 15, fontWeight: 600, marginTop: 8, marginBottom: 4 }}>No habits tracked yet</p>
+          <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 12, marginBottom: 16 }}>Start with a small daily routine:</p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[
+              { title: "🧘 Morning Meditation", color: "#a8e6cf" },
+              { title: "💧 Drink 8 Glasses Water", color: "#ffc3a0" },
+              { title: "📖 Read 10 Minutes", color: "#ffafbd" },
+              { title: "🚶 15-Minute Evening Walk", color: "#dcedc1" }
+            ].map((st, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  setHabits(p => [...p, { id: uid(), title: st.title, schedule: "daily", goalPerWeek: 5, color: st.color, reminderEnabled: false, reminderTime: "", lastRemindedDate: null, createdAt: now().toISOString(), completions: [], archived: false }]);
+                }}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 12,
+                  background: "rgba(255, 255, 255, 0.7)",
+                  border: "1px solid rgba(255, 195, 160, 0.3)",
+                  color: "#5a4a42",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between"
+                }}
+              >
+                <span>{st.title}</span>
+                <span style={{ fontSize: 12, color: "#ff9a76", fontWeight: 600 }}>+ Track</span>
+              </button>
+            ))}
+          </div>
+        </div>
       ) : (
         visibleHabits.map(h => {
           const isDoneToday = h.completions.includes(today);
@@ -1342,6 +1544,7 @@ function HabitsScreen({ habits, setHabits }) {
           ))
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -1426,21 +1629,42 @@ function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, mood
   const today = todayKey();
 
   return (
-    <div style={{ padding: "32px 24px 90px" }}>
-      <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 16 }}>Wellness</h2>
-
-      <div style={{ display: "flex", gap: 5, marginBottom: 16, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
-        {["gratitude", "energy", "mood", "affirmations", "breathe", "voice"].map(t => (
-          <button key={t} onClick={() => setSub(t)} style={{ flex: "0 0 auto", background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s", whiteSpace: "nowrap" }}>{t}</button>
-        ))}
+    <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #c3aed6 0%, #ffafbd 50%, #ffc3a0 100%)",
+        padding: "32px 24px 36px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 24,
+        boxShadow: "0 12px 40px rgba(195, 174, 214, 0.25)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+              Wellness & Presence
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+              Gratitude, mood timeline, energy & mindful breath
+            </p>
+          </div>
+        </div>
       </div>
 
-      {sub === "gratitude" && <GratitudePanel gratitude={gratitude} setGratitude={setGratitude} today={today} />}
-      {sub === "energy" && <EnergyPanel energyLog={energyLog} setEnergyLog={setEnergyLog} today={today} />}
-      {sub === "mood" && <MoodTimelinePanel moodLog={moodLog} />}
-      {sub === "affirmations" && <AffirmationsPanel affirmations={affirmations} generateAffirmation={generateAffirmation} />}
-      {sub === "breathe" && <BreathePanel />}
-      {sub === "voice" && <VoicePanel voiceNotes={voiceNotes} setVoiceNotes={setVoiceNotes} />}
+      <div style={{ padding: "0 24px" }}>
+        <div style={{ display: "flex", gap: 5, marginBottom: 16, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
+          {["gratitude", "energy", "mood", "affirmations", "breathe", "voice", "insights"].map(t => (
+            <button key={t} onClick={() => setSub(t)} style={{ flex: "0 0 auto", background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s", whiteSpace: "nowrap" }}>{t}</button>
+          ))}
+        </div>
+
+        {sub === "gratitude" && <GratitudePanel gratitude={gratitude} setGratitude={setGratitude} today={today} />}
+        {sub === "energy" && <EnergyPanel energyLog={energyLog} setEnergyLog={setEnergyLog} today={today} />}
+        {sub === "mood" && <MoodTimelinePanel moodLog={moodLog} />}
+        {sub === "affirmations" && <AffirmationsPanel affirmations={affirmations} generateAffirmation={generateAffirmation} />}
+        {sub === "breathe" && <BreathePanel />}
+        {sub === "voice" && <VoicePanel voiceNotes={voiceNotes} setVoiceNotes={setVoiceNotes} />}
+        {sub === "insights" && <InsightsPanel moodLog={moodLog} energyLog={energyLog} gratitude={gratitude} />}
+      </div>
     </div>
   );
 }
@@ -1587,6 +1811,40 @@ function MoodTimelinePanel({ moodLog }) {
   );
 }
 
+function InsightsPanel({ moodLog, energyLog, gratitude }) {
+  const totalCheckIns = moodLog ? moodLog.length : 0;
+  const totalGratitudes = gratitude ? Object.keys(gratitude).length : 0;
+
+  return (
+    <div>
+      <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>
+        Your weekly emotional health & life balance overview.
+      </p>
+
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", marginBottom: 10 }}>📊 Weekly Mindful Balance</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, textAlign: "center" }}>
+          <div style={{ padding: 12, borderRadius: 12, background: "rgba(168, 230, 207, 0.2)", border: "1px solid rgba(168, 230, 207, 0.4)" }}>
+            <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Mood Check-ins</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: "#2d6a4f", marginTop: 2 }}>{totalCheckIns}</p>
+          </div>
+          <div style={{ padding: 12, borderRadius: 12, background: "rgba(255, 195, 160, 0.2)", border: "1px solid rgba(255, 195, 160, 0.4)" }}>
+            <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Gratitude Notes</p>
+            <p style={{ fontSize: 22, fontWeight: 800, color: "#ff9a76", marginTop: 2 }}>{totalGratitudes}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="glass" style={{ borderRadius: 16, padding: 16 }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", marginBottom: 6 }}>💡 Mindful Recommendation</p>
+        <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.75)", lineHeight: 1.5 }}>
+          "Consistent daily check-ins and 5-minute breathing breaks build high emotional resilience over time."
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function AffirmationsPanel({ affirmations, generateAffirmation }) {
   const [loading, setLoading] = useState(false);
 
@@ -1621,6 +1879,7 @@ function BreathePanel() {
   const intervalRef = useRef(null);
 
   const start = () => {
+    playChimeSound(528, 1.2);
     setPhase("in");
     setCount(4);
     setCycles(0);
@@ -1630,8 +1889,9 @@ function BreathePanel() {
         if (c <= 1) {
           setPhase(p => {
             if (p === "in") { setCount(4); return "hold"; }
-            if (p === "hold") { setCount(6); return "out"; }
+            if (p === "hold") { playChimeSound(432, 1.2); setCount(6); return "out"; }
             if (p === "out") {
+              playChimeSound(528, 1.2);
               setCycles(cy => {
                 if (cy >= 4) { stop(); return cy; }
                 setCount(4);
@@ -1769,14 +2029,33 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes }) {
   };
 
   return (
-    <div style={{ padding: "32px 24px 90px" }}>
-      <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74", marginBottom: 24 }}>Memories</h2>
-
-      <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4 }}>
-        {["photos", "notes"].map(t => (
-          <button key={t} onClick={() => setSub(t)} style={{ flex: 1, background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s" }}>{t}</button>
-        ))}
+    <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #ffafbd 0%, #c3aed6 50%, #b4d4ff 100%)",
+        padding: "32px 24px 36px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 24,
+        boxShadow: "0 12px 40px rgba(255, 175, 189, 0.25)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+              Memories & Scrapbook
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+              Photo gallery & written memory notes
+            </p>
+          </div>
+        </div>
       </div>
+
+      <div style={{ padding: "0 24px" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 20, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4 }}>
+          {["photos", "notes"].map(t => (
+            <button key={t} onClick={() => setSub(t)} style={{ flex: 1, background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "8px 0", fontSize: 13, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s" }}>{t}</button>
+          ))}
+        </div>
 
       {sub === "photos" && (
         <div>
@@ -1786,32 +2065,50 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes }) {
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {photos.slice().reverse().map(ph => (
-              <div key={ph.id} className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
-                <img src={ph.dataUrl} alt={ph.caption} style={{ width: "100%", height: 160, objectFit: "cover" }} />
-                <div style={{ padding: "8px 10px" }}>
-                  <p style={{ fontSize: 12, color: "#5a4a42", fontWeight: 500 }}>{ph.caption || "Untitled"}</p>
-                  <p style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>{fmtDate(ph.date)}</p>
+          {photos.length === 0 ? (
+            <div className="glass" style={{ borderRadius: 16, padding: "36px 20px", textAlign: "center", marginTop: 8 }}>
+              <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 14, margin: 0, lineHeight: 1.6 }}>
+                No photo memories saved yet.<br />
+                Tap above to upload your first favorite moment! 📸
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+              {photos.slice().reverse().map(ph => (
+                <div key={ph.id} className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
+                  <img src={ph.dataUrl} alt={ph.caption} style={{ width: "100%", height: 160, objectFit: "cover" }} />
+                  <div style={{ padding: "8px 10px" }}>
+                    <p style={{ fontSize: 12, color: "#5a4a42", fontWeight: 500 }}>{ph.caption || "Untitled"}</p>
+                    <p style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>{fmtDate(ph.date)}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
       {sub === "notes" && (
         <div>
           <NoteForm onAdd={n => setNotes(p => [...p, n])} />
-          {notes.slice().reverse().map(n => (
-            <div key={n.id} className="glass" style={{ borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
-              <p style={{ color: "#5a4a42", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{n.title}</p>
-              <p style={{ color: "rgba(90, 74, 66, 0.7)", fontSize: 13, lineHeight: 1.5 }}>{n.body}</p>
-              <p style={{ color: "rgba(139, 126, 116, 0.4)", fontSize: 10, marginTop: 6 }}>{fmtDate(n.date)}</p>
+          {notes.length === 0 ? (
+            <div className="glass" style={{ borderRadius: 16, padding: "28px 20px", textAlign: "center", marginTop: 8 }}>
+              <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 14, margin: 0 }}>
+                No memory notes saved yet. Write your thoughts above! 📝
+              </p>
             </div>
-          ))}
+          ) : (
+            notes.slice().reverse().map(n => (
+              <div key={n.id} className="glass" style={{ borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
+                <p style={{ color: "#5a4a42", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{n.title}</p>
+                <p style={{ color: "rgba(90, 74, 66, 0.7)", fontSize: 13, lineHeight: 1.5 }}>{n.body}</p>
+                <p style={{ color: "rgba(139, 126, 116, 0.4)", fontSize: 10, marginTop: 6 }}>{fmtDate(n.date)}</p>
+              </div>
+            ))
+          )}
         </div>
       )}
+      </div>
     </div>
   );
 }
@@ -1850,16 +2147,24 @@ function MeaningfulMomentsScreen({ meaningfulMoments, setMeaningfulMoments }) {
 
       {showForm && <MomentForm type={type} setType={setType} onAdd={addMoment} onCancel={() => setShowForm(false)} />}
 
-      {meaningfulMoments.slice().reverse().map(m => (
-        <div key={m.id} className="glass fade-in" style={{ borderRadius: 16, padding: "14px 16px", marginBottom: 12, borderLeft: `4px solid ${m.type === "proud" ? "#a8e6cf" : m.type === "struggle" ? "#ffafbd" : "#ffd3b6"}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-            <Icon name={m.type === "proud" ? "star" : m.type === "struggle" ? "cloud" : "sun"} size={16} color={m.type === "proud" ? "#a8e6cf" : m.type === "struggle" ? "#ffafbd" : "#ffd3b6"} sw={1.8} />
-            <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.5)" }}>{fmtDate(m.date)}</p>
-          </div>
-          <p style={{ color: "#5a4a42", fontSize: 14, lineHeight: 1.5 }}>{m.text}</p>
-          {m.emotion && <p style={{ color: "rgba(139, 126, 116, 0.5)", fontSize: 11, marginTop: 4, fontStyle: "italic" }}>Felt: {m.emotion}</p>}
+      {meaningfulMoments.length === 0 ? (
+        <div className="glass" style={{ borderRadius: 16, padding: "32px 20px", textAlign: "center" }}>
+          <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 14, margin: 0 }}>
+            No moments captured yet. Tap + to record a proud win or struggle! 🌟
+          </p>
         </div>
-      ))}
+      ) : (
+        meaningfulMoments.slice().reverse().map(m => (
+          <div key={m.id} className="glass fade-in" style={{ borderRadius: 16, padding: "14px 16px", marginBottom: 12, borderLeft: `4px solid ${m.type === "proud" ? "#a8e6cf" : m.type === "struggle" ? "#ffafbd" : "#ffd3b6"}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+              <Icon name={m.type === "proud" ? "star" : m.type === "struggle" ? "cloud" : "sun"} size={16} color={m.type === "proud" ? "#a8e6cf" : m.type === "struggle" ? "#ffafbd" : "#ffd3b6"} sw={1.8} />
+              <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.5)" }}>{fmtDate(m.date)}</p>
+            </div>
+            <p style={{ color: "#5a4a42", fontSize: 14, lineHeight: 1.5 }}>{m.text}</p>
+            {m.emotion && <p style={{ color: "rgba(139, 126, 116, 0.5)", fontSize: 11, marginTop: 4, fontStyle: "italic" }}>Felt: {m.emotion}</p>}
+          </div>
+        ))
+      )}
     </div>
   );
 }
@@ -1886,11 +2191,41 @@ function MomentForm({ type, setType, onAdd, onCancel }) {
   );
 }
 
-function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, userName }) {
+function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMoments, setTasks, setHabits, setTab, userName }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState("empathic");
   const endRef = useRef(null);
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs]);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs, loading]);
+
+  const personas = [
+    { id: "empathic", name: "Empathic", emoji: "🌸" },
+    { id: "coach", name: "Focus Coach", emoji: "⚡" },
+    { id: "mindful", name: "Mindful Guide", emoji: "🌿" },
+    { id: "creative", name: "Creative Spark", emoji: "✨" }
+  ];
+
+  const speakText = (text) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.95;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleActionChip = (chip, messageText) => {
+    if (chip.actionType === "breath") {
+      setTab("wellness");
+    } else if (chip.actionType === "task") {
+      setTasks(p => [...p, { id: uid(), title: messageText.slice(0, 50), done: false, createdAt: now().toISOString() }]);
+    } else if (chip.actionType === "habit") {
+      setHabits(p => [...p, { id: uid(), title: messageText.slice(0, 40), schedule: "daily", goalPerWeek: 5, color: "#ffc3a0", completions: [], archived: false }]);
+    } else if (chip.actionType === "memory") {
+      setMeaningfulMoments(p => [...p, { id: uid(), date: now().toISOString(), type: "proud", text: messageText, emotion: "Inspired" }]);
+    }
+  };
 
   const send = async () => {
     if (!input.trim() || loading) return;
@@ -1901,8 +2236,9 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, userName }) {
     setLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 350));
-    const reply = getLocalChatReply({ userName, meaningfulMoments, message: msg.content });
-    setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, time: now().toISOString() }] : [{ role: "assistant", content: reply, time: now().toISOString() }]));
+    const reply = getLocalChatReply({ userName, meaningfulMoments, message: msg.content, personaId: selectedPersona });
+    const suggestions = detectActionableSuggestions(msg.content);
+    setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, suggestions, time: now().toISOString() }] : [{ role: "assistant", content: reply, suggestions, time: now().toISOString() }]));
     setLoading(false);
   };
 
@@ -1915,30 +2251,118 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, userName }) {
     }
   };
 
+  const [voiceCallActive, setVoiceCallActive] = useState(false);
+
+  const startVoiceCall = () => {
+    setVoiceCallActive(true);
+    speakText(`Hello ${userName || "friend"}! I am here with you. What's on your mind?`);
+  };
+
+  const endVoiceCall = () => {
+    setVoiceCallActive(false);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 90px)" }}>
-      <div style={{ padding: "32px 24px 12px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-        <div>
-          <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Chat</h2>
-          <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>I'm here, just for you</p>
+    <div className="fade-in" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 90px)" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #ffc3a0 0%, #ffafbd 50%, #c3aed6 100%)",
+        padding: "28px 24px 32px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 14,
+        boxShadow: "0 12px 40px rgba(255, 175, 189, 0.22)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+              Chat Companion
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+              Choose a companion personality & chat or call 24/7
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button onClick={startVoiceCall} style={{ padding: "8px 12px", borderRadius: 14, background: "rgba(255, 255, 255, 0.95)", border: "none", color: "#2d6a4f", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+              🎙️ Voice Call
+            </button>
+            <button onClick={clearChat} disabled={!chatMsgs.length} style={{ padding: "8px 12px", borderRadius: 14, background: "rgba(255, 255, 255, 0.95)", border: "none", color: "#ff9a76", fontSize: 12, fontWeight: 600, cursor: chatMsgs.length ? "pointer" : "default", opacity: chatMsgs.length ? 1 : 0.5, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+              Clear
+            </button>
+          </div>
         </div>
-        <button onClick={clearChat} disabled={!chatMsgs.length} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 154, 118, 0.12)", border: "1px solid rgba(255, 154, 118, 0.35)", color: "#ff9a76", fontSize: 12, fontWeight: 600, cursor: chatMsgs.length ? "pointer" : "default", opacity: chatMsgs.length ? 1 : 0.5 }}>
-          Clear chat
-        </button>
       </div>
+
+      {/* Persona Selection Chips */}
+      <div style={{ display: "flex", gap: 6, padding: "0 24px 12px", overflowX: "auto" }}>
+        {personas.map(p => (
+          <button
+            key={p.id}
+            onClick={() => setSelectedPersona(p.id)}
+            style={{
+              padding: "6px 12px",
+              borderRadius: 14,
+              border: selectedPersona === p.id ? "1px solid #ffc3a0" : "1px solid rgba(139, 126, 116, 0.15)",
+              background: selectedPersona === p.id ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "rgba(255, 255, 255, 0.6)",
+              color: selectedPersona === p.id ? "#fff" : "#5a4a42",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              whiteSpace: "nowrap"
+            }}
+          >
+            {p.emoji} {p.name}
+          </button>
+        ))}
+      </div>
+
       <div style={{ flex: 1, overflowY: "auto", padding: "0 20px 8px" }}>
         {chatMsgs.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 0" }}>
-            <Icon name="heart" size={40} color="rgba(255, 195, 160, 0.3)" sw={1} />
-            <p style={{ color: "rgba(139, 126, 116, 0.4)", fontSize: 14, marginTop: 12, lineHeight: 1.5 }}>Start a conversation.<br />I remember what matters.</p>
+          <div style={{ textAlign: "center", padding: "40px 0" }}>
+            <Icon name="heart" size={40} color="rgba(255, 195, 160, 0.4)" sw={1} />
+            <p style={{ color: "rgba(139, 126, 116, 0.5)", fontSize: 14, marginTop: 12, lineHeight: 1.5 }}>
+              Start a conversation.<br />I remember what matters.
+            </p>
           </div>
         )}
         {chatMsgs.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 10 }}>
-            <div style={{ maxWidth: "78%", padding: "10px 14px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: m.role === "user" ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "rgba(255, 255, 255, 0.7)", border: m.role === "assistant" ? "1px solid rgba(255, 195, 160, 0.2)" : "none" }}>
+          <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
+            <div style={{ maxWidth: "82%", padding: "10px 14px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: m.role === "user" ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "rgba(255, 255, 255, 0.75)", border: m.role === "assistant" ? "1px solid rgba(255, 195, 160, 0.25)" : "none", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
               <p style={{ color: m.role === "user" ? "#fff" : "#5a4a42", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</p>
-              <p style={{ color: m.role === "user" ? "rgba(255, 255, 255, 0.6)" : "rgba(139, 126, 116, 0.4)", fontSize: 9, marginTop: 4, textAlign: m.role === "user" ? "right" : "left" }}>{fmtTime(m.time)}</p>
+              
+              {m.role === "assistant" && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, paddingTop: 4, borderTop: "1px border-dashed rgba(139, 126, 116, 0.1)" }}>
+                  <span style={{ fontSize: 9, color: "rgba(139, 126, 116, 0.4)" }}>{fmtTime(m.time)}</span>
+                  <button onClick={() => speakText(m.content)} style={{ background: "none", border: "none", color: "#ff9a76", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>
+                    <Icon name="volume" size={12} color="#ff9a76" /> Listen
+                  </button>
+                </div>
+              )}
             </div>
+
+            {/* Action Chips */}
+            {m.role === "assistant" && m.suggestions && m.suggestions.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
+                {m.suggestions.map(chip => (
+                  <button
+                    key={chip.id}
+                    onClick={() => handleActionChip(chip, m.content)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 12,
+                      background: "rgba(255, 195, 160, 0.2)",
+                      border: "1px solid rgba(255, 195, 160, 0.4)",
+                      color: "#5a4a42",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: "pointer"
+                    }}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {loading && (
@@ -1959,6 +2383,62 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, userName }) {
           </button>
         </div>
       </div>
+
+      {voiceCallActive && (
+        <div style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 9999,
+          background: "linear-gradient(135deg, #2d2438 0%, #4a3b5c 50%, #6c527e 100%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "60px 24px 80px",
+          color: "#fff"
+        }}>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 2, color: "rgba(255, 255, 255, 0.7)", marginBottom: 8 }}>24/7 Live Companion Call</p>
+            <h2 style={{ fontSize: 28, fontFamily: "'Crimson Text', serif", fontStyle: "italic", margin: 0 }}>Saathi Voice Call</h2>
+          </div>
+
+          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{
+              width: 160,
+              height: 160,
+              borderRadius: 80,
+              background: "linear-gradient(135deg, #ffc3a0 0%, #ffafbd 50%, #c3aed6 100%)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 0 60px rgba(255, 175, 189, 0.6)"
+            }}>
+              <Icon name="heart" size={64} color="#fff" sw={2} />
+            </div>
+          </div>
+
+          <div style={{ textAlign: "center", width: "100%", maxWidth: 320 }}>
+            <p style={{ fontSize: 14, color: "rgba(255, 255, 255, 0.9)", marginBottom: 24, fontStyle: "italic" }}>
+              "I am here with you 24/7..."
+            </p>
+
+            <button onClick={endVoiceCall} style={{
+              width: "100%",
+              padding: "16px 0",
+              borderRadius: 30,
+              background: "linear-gradient(135deg, #ff6b6b, #ff8e8e)",
+              border: "none",
+              color: "#fff",
+              fontSize: 16,
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "0 8px 24px rgba(255, 107, 107, 0.4)"
+            }}>
+              🔴 End Companion Call
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2041,13 +2521,31 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
   const goToToday = () => { const t = new Date(); setCurrentMonth(t); setSelectedDate(t); };
 
   return (
-    <div style={{ padding: "32px 24px 90px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <h2 style={{ fontSize: 24, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#8b7e74" }}>Daily Notes</h2>
-        <button onClick={goToToday} style={{ padding: "8px 16px", borderRadius: 12, background: "rgba(168, 230, 207, 0.15)", border: "1px solid rgba(168, 230, 207, 0.3)", color: "#a8e6cf", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-          <Icon name="calendar" size={14} /> Today
-        </button>
+    <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
+      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      <div style={{
+        background: "linear-gradient(135deg, #b4d4ff 0%, #c3aed6 50%, #ffafbd 100%)",
+        padding: "32px 24px 36px",
+        borderRadius: "0 0 36px 36px",
+        marginBottom: 24,
+        boxShadow: "0 12px 40px rgba(180, 212, 255, 0.25)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+              Calendar Journal
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+              Daily reflections, thoughts & milestone notes
+            </p>
+          </div>
+          <button onClick={goToToday} style={{ padding: "8px 16px", borderRadius: 14, background: "rgba(255, 255, 255, 0.95)", border: "none", color: "#5a4a42", fontSize: 12, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+            Today
+          </button>
+        </div>
       </div>
+
+      <div style={{ padding: "0 24px" }}>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -2096,6 +2594,7 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
           📝 <strong>{Object.keys(dailyNotes).length}</strong> notes saved •
           <strong> {Object.keys(dailyNotes).filter(k => { const d = new Date(k); return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear(); }).length}</strong> this month
         </p>
+      </div>
       </div>
     </div>
   );

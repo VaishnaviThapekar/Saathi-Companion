@@ -202,6 +202,74 @@ export default function HomeScreen({
                 </div>
             </div>
 
+            {/* 24/7 CIRCADIAN RHYTHM ENGINE CARDS */}
+            {(() => {
+                const hour = new Date().getHours();
+                if (hour >= 6 && hour < 11) {
+                    return (
+                        <div className="glass" style={{
+                            margin: "0 20px 24px",
+                            borderRadius: 20,
+                            padding: 20,
+                            background: "linear-gradient(135deg, rgba(255, 195, 160, 0.25) 0%, rgba(255, 255, 255, 0.9) 100%)",
+                            border: "1px solid rgba(255, 195, 160, 0.4)",
+                            boxShadow: "0 10px 30px rgba(255, 195, 160, 0.15)"
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                                <span style={{ fontSize: 24 }}>🌅</span>
+                                <div>
+                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#5a4a42", margin: 0 }}>Morning Briefing</h3>
+                                    <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.65)", marginTop: 2 }}>Your 24/7 Companion Start</p>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: 13, color: "#5a4a42", lineHeight: 1.5, marginBottom: 14 }}>
+                                Good morning, <strong>{userName}</strong>! You have <strong>{activeTasks} pending task{activeTasks === 1 ? '' : 's'}</strong> today. Let's start with a clear mind and focus!
+                            </p>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <button onClick={() => setTab("tasks")} style={{ padding: "8px 14px", borderRadius: 12, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                                    📌 Focus Tasks ({activeTasks})
+                                </button>
+                                <button onClick={() => setTab("wellness")} style={{ padding: "8px 14px", borderRadius: 12, background: "rgba(168, 230, 207, 0.35)", border: "1px solid rgba(168, 230, 207, 0.6)", color: "#2d6a4f", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                                    ✨ Affirmations
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                if (hour >= 21 || hour < 4) {
+                    return (
+                        <div className="glass" style={{
+                            margin: "0 20px 24px",
+                            borderRadius: 20,
+                            padding: 20,
+                            background: "linear-gradient(135deg, rgba(195, 174, 214, 0.25) 0%, rgba(255, 255, 255, 0.9) 100%)",
+                            border: "1px solid rgba(195, 174, 214, 0.4)",
+                            boxShadow: "0 10px 30px rgba(195, 174, 214, 0.18)"
+                        }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                                <span style={{ fontSize: 24 }}>🌌</span>
+                                <div>
+                                    <h3 style={{ fontSize: 16, fontWeight: 700, color: "#5a4a42", margin: 0 }}>Night Wind-Down</h3>
+                                    <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.65)", marginTop: 2 }}>Time to Rest & Unwind</p>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: 13, color: "#5a4a42", lineHeight: 1.5, marginBottom: 14 }}>
+                                Good evening, <strong>{userName}</strong>. Take a moment to reflect on your day and relax your body before sleep.
+                            </p>
+                            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                <button onClick={() => setTab("wellness")} style={{ padding: "8px 14px", borderRadius: 12, background: "linear-gradient(135deg, #c3aed6, #ffafbd)", border: "none", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                                    🌬️ 4-4-6 Breathing Reset
+                                </button>
+                                <button onClick={() => setTab("wellness")} style={{ padding: "8px 14px", borderRadius: 12, background: "rgba(255, 195, 160, 0.35)", border: "1px solid rgba(255, 195, 160, 0.6)", color: "#8b5a2b", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                                    🌸 Gratitude Log
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
+                return null;
+            })()}
+
             {/* QUICK STATS SECTION */}
             <div style={{ padding: "0 20px", marginBottom: 24 }}>
                 <p style={{
@@ -491,55 +559,6 @@ export default function HomeScreen({
                     }}></span>
                     Today's Snapshot
                 </p>
-
-                {!showCheckIn && (
-                    <div className="glass" style={{
-                        borderRadius: 16,
-                        padding: 16,
-                        marginBottom: 12,
-                        minHeight: 120,
-                        borderLeft: "5px solid #ffafbd",
-                        background: "linear-gradient(135deg, rgba(255, 175, 189, 0.08) 0%, rgba(255, 255, 255, 0.9) 100%)"
-                    }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
-                            <div style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 10,
-                                background: "linear-gradient(135deg, rgba(255, 195, 160, 0.2), rgba(255, 175, 189, 0.1))",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center"
-                            }}>
-                                <Icon name="smile" size={18} color="#ffafbd" sw={2} />
-                            </div>
-                            <div style={{ flex: 1 }}>
-                                <p style={{ fontSize: 11, fontWeight: 800, color: "rgba(139, 126, 116, 0.65)", letterSpacing: "0.5px" }}>
-                                    QUICK CHECK-IN
-                                </p>
-                                <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.75)" }}>
-                                    Tap to add your mood for today
-                                </p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setShowCheckIn(true)}
-                            style={{
-                                width: "100%",
-                                padding: "10px 12px",
-                                borderRadius: 12,
-                                background: "linear-gradient(135deg, #ffc3a0, #ffafbd)",
-                                border: "none",
-                                color: "#fff",
-                                fontSize: 13,
-                                fontWeight: 700,
-                                cursor: "pointer"
-                            }}
-                        >
-                            Add Check-In
-                        </button>
-                    </div>
-                )}
 
                 {/* Gratitude */}
                 {todayGratitude && (

@@ -170,38 +170,44 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
     };
 
     return (
-        <div style={{ padding: "24px 20px 0" }}>
-            {/* Header */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                <h2 style={{
-                    fontSize: 24,
-                    fontFamily: "'Crimson Text', serif",
-                    fontWeight: 400,
-                    fontStyle: "italic",
-                    color: "#8b7e74"
-                }}>
-                    Daily Notes
-                </h2>
-                <button
-                    onClick={goToToday}
-                    style={{
-                        padding: "8px 16px",
-                        borderRadius: 12,
-                        background: "rgba(168, 230, 207, 0.15)",
-                        border: "1px solid rgba(168, 230, 207, 0.3)",
-                        color: "#a8e6cf",
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6
-                    }}
-                >
-                    <Icon name="calendar" size={14} />
-                    Today
-                </button>
+        <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
+            {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+            <div style={{
+                background: "linear-gradient(135deg, #b4d4ff 0%, #c3aed6 50%, #ffafbd 100%)",
+                padding: "32px 24px 36px",
+                borderRadius: "0 0 36px 36px",
+                marginBottom: 24,
+                boxShadow: "0 12px 40px rgba(180, 212, 255, 0.25)"
+            }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                        <h2 style={{ fontSize: 26, fontFamily: "'Crimson Text', serif", fontWeight: 400, fontStyle: "italic", color: "#fff", margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
+                            Calendar Journal
+                        </h2>
+                        <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
+                            Daily reflections, thoughts & milestone notes
+                        </p>
+                    </div>
+                    <button
+                        onClick={goToToday}
+                        style={{
+                            padding: "8px 16px",
+                            borderRadius: 14,
+                            background: "rgba(255, 255, 255, 0.95)",
+                            border: "none",
+                            color: "#5a4a42",
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.08)"
+                        }}
+                    >
+                        Today
+                    </button>
+                </div>
             </div>
+
+            <div style={{ padding: "0 24px" }}>
 
             {/* Calendar */}
             <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
@@ -437,5 +443,6 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                 </p>
             </div>
         </div>
+    </div>
     );
 }
