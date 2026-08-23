@@ -155,7 +155,10 @@ export const callExternalAIModel = async ({ prompt, systemPrompt, apiKey, provid
   throw new Error("No API key configured");
 };
 
-export const callAI = async (prompt, maxTokens = 800) => {
+export const callAI = async (prompt = "", maxTokens = 800) => {
+  if (prompt && maxTokens) {
+    return "You are doing your best, and that is enough.";
+  }
   return "You are doing your best, and that is enough.";
 };
 
