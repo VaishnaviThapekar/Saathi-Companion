@@ -34,7 +34,6 @@ export default function HomeScreen({
     Icon // Pass Icon component as prop
 }) {
     const [showCheckIn, setShowCheckIn] = useState(false);
-    const [showGuide, setShowGuide] = useState(false);
     const [mood, setMood] = useState("");
     const [struggles, setStruggles] = useState("");
 
@@ -105,30 +104,6 @@ export default function HomeScreen({
                 overflow: "hidden",
                 boxShadow: "0 12px 48px rgba(255, 175, 189, 0.2)"
             }}>
-                <button
-                    onClick={() => setShowGuide(true)}
-                    style={{
-                        position: "absolute",
-                        top: 20,
-                        right: 20,
-                        zIndex: 10,
-                        padding: "6px 14px",
-                        borderRadius: 20,
-                        background: "rgba(255, 255, 255, 0.3)",
-                        backdropFilter: "blur(12px)",
-                        border: "1px solid rgba(255, 255, 255, 0.5)",
-                        color: "#fff",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        boxShadow: "0 4px 14px rgba(0,0,0,0.1)",
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 4
-                    }}
-                >
-                    📖 Guide
-                </button>
                 {/* Animated background elements */}
                 <div style={{
                     position: "absolute",
@@ -843,46 +818,6 @@ export default function HomeScreen({
                             </p>
                         </div>
                     ))}
-                </div>
-            )}
-
-            {/* 1-MINUTE APP GUIDE MODAL */}
-            {showGuide && (
-                <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-                    <div className="glass" style={{ borderRadius: 24, padding: 24, width: "100%", maxWidth: 380, maxHeight: "85vh", overflowY: "auto", background: "rgba(255, 255, 255, 0.98)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                            <h3 style={{ fontSize: 20, fontFamily: "'Crimson Text', serif", fontWeight: 700, color: "#5a4a42", margin: 0 }}>📖 Saathi 1-Minute Guide</h3>
-                            <button onClick={() => setShowGuide(false)} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "rgba(139,126,116,0.6)" }}>✕</button>
-                        </div>
-
-                        <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13, color: "#5a4a42", lineHeight: 1.6 }}>
-                            <div>
-                                <strong>🏠 Home Tab (1st Page):</strong> Displays your daily overview, 24/7 morning/night briefing cards, and live emotional aura.
-                            </div>
-                            <div>
-                                <strong>📌 Tasks & Priorities:</strong> Organize daily todo items with 1-click starter suggestions.
-                            </div>
-                            <div>
-                                <strong>🔥 Habits & Routines:</strong> Track streaks and schedule daily/weekly habits with reminders.
-                            </div>
-                            <div>
-                                <strong>🌿 Wellness:</strong> Journal gratitude, log mood timelines, practice 4-4-6 breathing, and view weekly insights.
-                            </div>
-                            <div>
-                                <strong>📸 Memories:</strong> Save photo memories, view your 🌌 constellation sky, and write 💌 future time capsule letters.
-                            </div>
-                            <div>
-                                <strong>📅 Calendar Journal:</strong> Browse and write daily reflections by date.
-                            </div>
-                            <div>
-                                <strong>💬 Chat Companion:</strong> Text or 🎙️ Voice Call 24/7 with 4 customizable AI companion personas.
-                            </div>
-                        </div>
-
-                        <button onClick={() => setShowGuide(false)} style={{ width: "100%", marginTop: 20, padding: "12px 0", borderRadius: 12, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-                            Got It! ✨
-                        </button>
-                    </div>
                 </div>
             )}
         </div>

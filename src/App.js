@@ -885,8 +885,6 @@ function SettingsScreen({
     return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  const [showGuide, setShowGuide] = useState(false);
-
   return (
     <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
       {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
@@ -910,20 +908,6 @@ function SettingsScreen({
       </div>
 
       <div style={{ padding: "0 24px" }}>
-
-      {/* QUICK USER GUIDE CARD */}
-      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
-        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>App Guide & Helper ❓</p>
-        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.65)", marginBottom: 12 }}>
-          Learn how to use all Saathi features in 1 minute.
-        </p>
-        <button
-          onClick={() => setShowGuide(true)}
-          style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-        >
-          Open 1-Minute App Guide 📖
-        </button>
-      </div>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 6 }}>Data status</p>
@@ -1101,45 +1085,6 @@ function SettingsScreen({
         }} style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "rgba(139, 126, 116, 0.1)", border: "1px solid rgba(139, 126, 116, 0.2)", color: "rgba(139, 126, 116, 0.7)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Sign Out</button>
       </div>
       </div>
-
-      {showGuide && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.4)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div className="glass" style={{ borderRadius: 24, padding: 24, width: "100%", maxWidth: 380, maxHeight: "85vh", overflowY: "auto", background: "rgba(255, 255, 255, 0.98)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ fontSize: 20, fontFamily: "'Crimson Text', serif", fontWeight: 700, color: "#5a4a42", margin: 0 }}>📖 Saathi User Guide</h3>
-              <button onClick={() => setShowGuide(false)} style={{ background: "none", border: "none", fontSize: 16, cursor: "pointer", color: "rgba(139,126,116,0.6)" }}>✕</button>
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 14, fontSize: 13, color: "#5a4a42", lineHeight: 1.6 }}>
-              <div>
-                <strong>🏠 Home Tab:</strong> Displays your daily overview, 24/7 morning/night briefing cards, and live emotional aura.
-              </div>
-              <div>
-                <strong>📌 Tasks & Priorities:</strong> Organize daily todo items with 1-click starter suggestions.
-              </div>
-              <div>
-                <strong>🔥 Habits & Routines:</strong> Track streaks and schedule daily/weekly habits with reminders.
-              </div>
-              <div>
-                <strong>🌿 Wellness:</strong> Journal gratitude, log mood timelines, practice 4-4-6 breathing, and view weekly insights.
-              </div>
-              <div>
-                <strong>📸 Memories:</strong> Save photo memories, view your 🌌 constellation sky, and write 💌 future time capsule letters.
-              </div>
-              <div>
-                <strong>📅 Calendar Journal:</strong> Browse and write daily reflections by date.
-              </div>
-              <div>
-                <strong>💬 Chat Companion:</strong> Text or 🎙️ Voice Call 24/7 with 4 customizable AI companion personas.
-              </div>
-            </div>
-
-            <button onClick={() => setShowGuide(false)} style={{ width: "100%", marginTop: 20, padding: "12px 0", borderRadius: 12, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
-              Got It! ✨
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
