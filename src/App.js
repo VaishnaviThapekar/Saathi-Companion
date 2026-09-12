@@ -769,18 +769,29 @@ function BottomNav({ tab, setTab, onLogout }) {
 function SettingsScreen({
   userName,
   tasks,
+  setTasks,
   habits,
+  setHabits,
   notes,
+  setNotes,
   photos,
+  setPhotos,
   meaningfulMoments,
+  setMeaningfulMoments,
   chatMsgs,
+  setChatMsgs,
   dailyCheckIn,
   lastCheckInDate,
   dailyNotes,
+  setDailyNotes,
   voiceNotes,
+  setVoiceNotes,
   gratitude,
+  setGratitude,
   energyLog,
+  setEnergyLog,
   moodLog,
+  setMoodLog,
   affirmations,
   weeklyReflection,
   emotionalPatterns,
@@ -793,6 +804,7 @@ function SettingsScreen({
   setIsLocked,
   resetAccount,
   onLogout,
+  showToast,
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -844,6 +856,36 @@ function SettingsScreen({
     if (exportSelection.gratitude) data.gratitude = gratitude;
     if (exportSelection.dailyNotes) data.dailyNotes = dailyNotes;
     download("ai-companion-export.json", JSON.stringify(data, null, 2), "application/json");
+  };
+
+  const importJson = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target.result);
+        if (!data || typeof data !== "object") throw new Error("Invalid backup format");
+
+        if (data.tasks && setTasks) setTasks(data.tasks);
+        if (data.habits && setHabits) setHabits(data.habits);
+        if (data.notes && setNotes) setNotes(data.notes);
+        if (data.meaningfulMoments && setMeaningfulMoments) setMeaningfulMoments(data.meaningfulMoments);
+        if (data.moodLog && setMoodLog) setMoodLog(data.moodLog);
+        if (data.energyLog && setEnergyLog) setEnergyLog(data.energyLog);
+        if (data.gratitude && setGratitude) setGratitude(data.gratitude);
+        if (data.dailyNotes && setDailyNotes) setDailyNotes(data.dailyNotes);
+        if (data.photos && setPhotos) setPhotos(data.photos);
+        if (data.voiceNotes && setVoiceNotes) setVoiceNotes(data.voiceNotes);
+        if (data.chatMsgs && setChatMsgs) setChatMsgs(data.chatMsgs);
+
+        if (showToast) showToast("Backup restored successfully! 🎉");
+        else alert("Backup restored successfully! 🎉");
+      } catch (err) {
+        alert("Failed to parse backup JSON file. Please select a valid Saathi backup.");
+      }
+    };
+    reader.readAsText(file);
   };
 
   const exportCsv = () => {
@@ -1114,8 +1156,24 @@ function SettingsScreen({
           ))}
         </div>
         <button onClick={exportJson} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export JSON</button>
-        <button onClick={exportCsv} style={{ width: "100%", padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export CSVs</button>
-        <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.5)", marginTop: 8 }}>CSV export downloads multiple files.</p>
+        <button onClick={exportCsv} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export CSVs</button>
+        <label style={{
+          display: "block",
+          width: "100%",
+          padding: "10px 0",
+          borderRadius: 10,
+          background: "rgba(168, 230, 207, 0.2)",
+          border: "1.5px dashed #a8e6cf",
+          color: "#2d6a4f",
+          fontSize: 13,
+          fontWeight: 600,
+          cursor: "pointer",
+          textAlign: "center"
+        }}>
+          📥 Import Backup JSON
+          <input type="file" accept=".json" onChange={importJson} style={{ display: "none" }} />
+        </label>
+        <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.5)", marginTop: 8 }}>CSV export downloads multiple files. Import restores your backed-up JSON data.</p>
       </div>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginTop: 16, border: "1px solid rgba(255, 154, 118, 0.3)" }}>
@@ -1404,7 +1462,7 @@ function TaskForm({ onAdd, onTaskAdded }) {
 }
 
 // HABITS SCREEN - Fuller habit tracker with streaks
-function HabitsScreen({ habits, setHabits }) {
+function HabitsScreen({ habits, setHabits, showToast }) {
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [reminderQuery, setReminderQuery] = useState("");
@@ -1428,6 +1486,11 @@ function HabitsScreen({ habits, setHabits }) {
 
   const removeHabit = (habit) => {
     setHabits(p => p.filter(h => h.id !== habit.id));
+    if (showToast) {
+      showToast("Habit deleted", () => {
+        setHabits(p => [...p, habit]);
+      });
+    }
   };
 
   const dateKeyFrom = (d) => d.toISOString().slice(0, 10);
@@ -1596,7 +1659,14 @@ function HabitsScreen({ habits, setHabits }) {
                   {isDoneToday && <Icon name="check" size={12} color="#fff" sw={3} />}
                 </button>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ color: "#5a4a42", fontSize: 15, fontWeight: 600 }}>{h.title}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <p style={{ color: "#5a4a42", fontSize: 15, fontWeight: 600, margin: 0 }}>{h.title}</p>
+                    {streak >= 3 && (
+                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: streak >= 30 ? "rgba(255, 195, 160, 0.3)" : streak >= 7 ? "rgba(255, 175, 189, 0.3)" : "rgba(168, 230, 207, 0.3)", color: "#5a4a42", fontWeight: 700 }}>
+                        {streak >= 30 ? `👑 ${streak}d Legend` : streak >= 7 ? `🔥 ${streak}d Streak` : `🏆 ${streak}d Streak`}
+                      </span>
+                    )}
+                  </div>
                   <p style={{ color: "rgba(139, 126, 116, 0.5)", fontSize: 11, marginTop: 2 }}>
                     {h.schedule === "weekly" ? `${weekCount}/${h.goalPerWeek} this week` : (isDoneToday ? "Done today" : "Not done today")}
                   </p>
@@ -1781,7 +1851,7 @@ function HabitForm({ onAdd }) {
 }
 
 // WELLNESS SCREEN - Features 3, 5, 6, 7, 8, 9
-function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes }) {
+function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, showToast }) {
   const [sub, setSub] = useState("gratitude");
   const today = todayKey();
 
@@ -1819,7 +1889,7 @@ function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, mood
         {sub === "mood" && <MoodTimelinePanel moodLog={moodLog} />}
         {sub === "affirmations" && <AffirmationsPanel affirmations={affirmations} generateAffirmation={generateAffirmation} />}
         {sub === "breathe" && <BreathePanel />}
-        {sub === "voice" && <VoicePanel voiceNotes={voiceNotes} setVoiceNotes={setVoiceNotes} />}
+        {sub === "voice" && <VoicePanel voiceNotes={voiceNotes} setVoiceNotes={setVoiceNotes} showToast={showToast} />}
         {sub === "insights" && <InsightsPanel moodLog={moodLog} energyLog={energyLog} gratitude={gratitude} />}
       </div>
     </div>
@@ -2152,10 +2222,19 @@ function BreathePanel() {
   );
 }
 
-function VoicePanel({ voiceNotes, setVoiceNotes }) {
+function VoicePanel({ voiceNotes, setVoiceNotes, showToast }) {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
   const recognitionRef = useRef(null);
+
+  const deleteVoiceNote = (noteToDelete) => {
+    setVoiceNotes(p => p.filter(v => v.id !== noteToDelete.id));
+    if (showToast) {
+      showToast("Voice note deleted", () => {
+        setVoiceNotes(p => [...p, noteToDelete]);
+      });
+    }
+  };
 
   const startRecording = () => {
     if (!("webkitSpeechRecognition" in window)) {
@@ -2207,8 +2286,13 @@ function VoicePanel({ voiceNotes, setVoiceNotes }) {
       {voiceNotes.slice(-10).reverse().map(v => (
         <div key={v.id} className="glass" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-            <Icon name="mic" size={14} color="#ffc3a0" />
-            <span style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.4)" }}>{fmtDate(v.date)}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Icon name="mic" size={14} color="#ffc3a0" />
+              <span style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.4)" }}>{fmtDate(v.date)}</span>
+            </div>
+            <button onClick={() => deleteVoiceNote(v)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
+              <Icon name="trash" size={14} />
+            </button>
           </div>
           <p style={{ color: "#5a4a42", fontSize: 13, lineHeight: 1.5 }}>{v.transcript}</p>
         </div>
@@ -2394,6 +2478,7 @@ function TimeCapsulePanel({ timeCapsules, setTimeCapsules }) {
 // MEMORIES & MOMENTS SCREENS - Keep from previous version
 function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments, moodLog }) {
   const [sub, setSub] = useState("photos");
+  const [searchQuery, setSearchQuery] = useState("");
   const [timeCapsules, setTimeCapsules] = useState(() => {
     try {
       const saved = localStorage.getItem("saathi_time_capsules");
@@ -2423,6 +2508,16 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments,
     reader.readAsDataURL(file);
   };
 
+  const filteredPhotos = photos.filter(ph =>
+    (ph.caption || "").toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    (ph.emotion || "").toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+
+  const filteredNotes = notes.filter(n =>
+    (n.title || "").toLowerCase().includes(searchQuery.trim().toLowerCase()) ||
+    (n.body || "").toLowerCase().includes(searchQuery.trim().toLowerCase())
+  );
+
   return (
     <div className="fade-in" style={{ padding: "0 0 90px 0", position: "relative" }}>
       {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
@@ -2446,11 +2541,30 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments,
       </div>
 
       <div style={{ padding: "0 24px" }}>
-        <div style={{ display: "flex", gap: 5, marginBottom: 20, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
+        <div style={{ display: "flex", gap: 5, marginBottom: 14, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
           {["photos", "notes", "constellation", "capsule"].map(t => (
             <button key={t} onClick={() => setSub(t)} style={{ flex: "0 0 auto", background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "7px 12px", fontSize: 12, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s" }}>{t}</button>
           ))}
         </div>
+
+        {(sub === "photos" || sub === "notes") && (
+          <input
+            placeholder={`🔍 Search ${sub}...`}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            style={{
+              width: "100%",
+              background: "rgba(255, 255, 255, 0.7)",
+              border: "1px solid rgba(255, 195, 160, 0.3)",
+              borderRadius: 12,
+              padding: "10px 14px",
+              color: "#5a4a42",
+              fontSize: 13,
+              outline: "none",
+              marginBottom: 16
+            }}
+          />
+        )}
 
         {sub === "constellation" && <MemoryConstellationPanel photos={photos} notes={notes} moodLog={moodLog} meaningfulMoments={meaningfulMoments} />}
         {sub === "capsule" && <TimeCapsulePanel timeCapsules={timeCapsules} setTimeCapsules={setTimeCapsules} />}
@@ -2463,16 +2577,15 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments,
           </button>
           <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: "none" }} />
 
-          {photos.length === 0 ? (
+          {filteredPhotos.length === 0 ? (
             <div className="glass" style={{ borderRadius: 16, padding: "36px 20px", textAlign: "center", marginTop: 8 }}>
               <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 14, margin: 0, lineHeight: 1.6 }}>
-                No photo memories saved yet.<br />
-                Tap above to upload your first favorite moment! 📸
+                {searchQuery ? "No matching photo memories found." : "No photo memories saved yet.\nTap above to upload your first favorite moment! 📸"}
               </p>
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-              {photos.slice().reverse().map(ph => (
+              {filteredPhotos.slice().reverse().map(ph => (
                 <div key={ph.id} className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
                   <img src={ph.dataUrl} alt={ph.caption} style={{ width: "100%", height: 160, objectFit: "cover" }} />
                   <div style={{ padding: "8px 10px" }}>
@@ -2489,14 +2602,14 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments,
       {sub === "notes" && (
         <div>
           <NoteForm onAdd={n => setNotes(p => [...p, n])} />
-          {notes.length === 0 ? (
+          {filteredNotes.length === 0 ? (
             <div className="glass" style={{ borderRadius: 16, padding: "28px 20px", textAlign: "center", marginTop: 8 }}>
               <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 14, margin: 0 }}>
-                No memory notes saved yet. Write your thoughts above! 📝
+                {searchQuery ? "No matching memory notes found." : "No memory notes saved yet. Write your thoughts above! 📝"}
               </p>
             </div>
           ) : (
-            notes.slice().reverse().map(n => (
+            filteredNotes.slice().reverse().map(n => (
               <div key={n.id} className="glass" style={{ borderRadius: 14, padding: "14px 16px", marginBottom: 10 }}>
                 <p style={{ color: "#5a4a42", fontSize: 14, fontWeight: 600, marginBottom: 6 }}>{n.title}</p>
                 <p style={{ color: "rgba(90, 74, 66, 0.7)", fontSize: 13, lineHeight: 1.5 }}>{n.body}</p>
