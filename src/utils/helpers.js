@@ -1,58 +1,51 @@
-//  ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
+// HELPER UTILITIES (Timezone-Aware Date Keys, Overdue & Media Processing)
+// ═══════════════════════════════════════════════════════════════════════
 
-/**
- * Generate unique ID
- */
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
 
-/**
- * Get current date/time
- */
 export const now = () => new Date();
 
-/**
- * Get today's date key (YYYY-MM-DD)
- */
-export const todayKey = () => now().toISOString().slice(0, 10);
-
-/**
- * Get start of current week (YYYY-MM-DD)
- */
-export const weekKey = () => {
-  const d = now();
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().slice(0, 10);
+// Guaranteed Local Date Key (YYYY-MM-DD) avoiding UTC timezone shift bugs
+export const todayKey = (dateInput = new Date()) => {
+  const d = new Date(dateInput);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
-/**
- * Get current month key (YYYY-MM)
- */
-export const monthKey = () => now().toISOString().slice(0, 7);
+export const weekKey = (dateInput = new Date()) => {
+  const d = new Date(dateInput);
+  d.setDate(d.getDate() - d.getDay());
+  return todayKey(d);
+};
 
-/**
- * Format time (HH:MM AM/PM)
- */
+export const monthKey = (dateInput = new Date()) => {
+  const d = new Date(dateInput);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+};
+
 export const fmtTime = (dateString) => {
+  if (!dateString) return "";
   return new Date(dateString).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit"
   });
 };
 
-/**
- * Format date (Month Day)
- */
 export const fmtDate = (dateString) => {
+  if (!dateString) return "";
   return new Date(dateString).toLocaleDateString([], {
     month: "short",
     day: "numeric"
   });
 };
 
-/**
- * Format date long (Month Day, Year)
- */
 export const fmtDateLong = (dateString) => {
+  if (!dateString) return "";
   return new Date(dateString).toLocaleDateString([], {
     month: "long",
     day: "numeric",
@@ -60,18 +53,14 @@ export const fmtDateLong = (dateString) => {
   });
 };
 
-/**
- * Check if task is overdue
- */
+// Accurate Overdue check with time precision
 export const isOverdue = (task) => {
-  if (task.done || !task.dueDate) return false;
-  const dueDateTime = new Date(task.dueDate + "T23:59:59");
+  if (!task || task.done || !task.dueDate) return false;
+  const timePart = task.dueTime ? `${task.dueTime}:00` : "23:59:59";
+  const dueDateTime = new Date(`${task.dueDate}T${timePart}`);
   return dueDateTime < now();
 };
 
-/**
- * Play notification sound (bell chime)
- */
 export const playNotificationSound = () => {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -92,15 +81,13 @@ export const playNotificationSound = () => {
   }
 };
 
-/**
- * Calculate streak from date-based log
- */
 export const calculateStreak = (log, currentDate) => {
+  if (!log) return 0;
   let streak = 0;
   let d = new Date(currentDate || todayKey());
 
   for (let i = 0; i < 365; i++) {
-    const key = d.toISOString().slice(0, 10);
+    const key = todayKey(d);
     if (log[key]) {
       streak++;
       d.setDate(d.getDate() - 1);
@@ -114,12 +101,35 @@ export const calculateStreak = (log, currentDate) => {
   return streak;
 };
 
-/**
- * Get greeting based on time of day
- */
 export const getGreeting = () => {
   const hour = now().getHours();
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";
   return "Good evening";
+};
+
+// Image Compression Helper to protect LocalStorage quota
+export const compressImage = (dataUrl, maxWidth = 800, quality = 0.75) => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width);
+        width = maxWidth;
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
 };

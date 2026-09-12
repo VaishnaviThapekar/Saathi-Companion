@@ -5,6 +5,7 @@ import { isAuthenticated, logout, getPinLockoutStatus, recordFailedPinAttempt, c
 import { detectActionableSuggestions, CRISIS_HELPLINES } from "./utils/ai";
 import { getStorageQuota } from "./utils/storage";
 import { playChimeSound } from "./services/soundService";
+import { compressImage } from "./utils/helpers";
 
 // ═══════════════════════════════════════════════════════════════════════
 // STORAGE MOCK - Makes name & data persist permanently
@@ -500,10 +501,27 @@ export default function App() {
     setTab("home");
   };
 
-  const showToast = (message) => {
+  const [undoState, setUndoState] = useState(null);
+
+  const showToast = (message, onUndo = null) => {
     setToast(message);
+    if (onUndo) setUndoState(() => onUndo);
+    else setUndoState(null);
+
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = setTimeout(() => setToast(""), 2500);
+    toastTimerRef.current = setTimeout(() => {
+      setToast("");
+      setUndoState(null);
+    }, onUndo ? 4500 : 2500);
+  };
+
+  const handleUndo = () => {
+    if (undoState) {
+      undoState();
+      setToast("Restored! ↩️");
+      setUndoState(null);
+      setTimeout(() => setToast(""), 2000);
+    }
   };
 
   const dismissTaskAlarm = () => {
@@ -519,7 +537,7 @@ export default function App() {
 
   // Authentication check first, then name setup, then main app
 
-  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, onLogout: () => { logout(); setAuthenticated(false); } };
+  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, showToast, onLogout: () => { logout(); setAuthenticated(false); } };
 
   const screens = {
     home: <HomeScreen {...shared} />,
@@ -536,18 +554,15 @@ export default function App() {
   return (
     <>
       {!authenticated ? (
-        <LoginScreen
-          onLoginSuccess={() => setAuthenticated(true)}
-          Icon={Icon}
-        />
+        <LoginScreen onLoginSuccess={() => setAuthenticated(true)} />
       ) : !userName ? (
-        <NameSetup onSet={setUserName} />
+        <NameSetup onSet={(n) => { setUserName(n); setLastSavedAt(now().toISOString()); }} />
       ) : (
-        <div className="app-shell">
+        <div className="app-shell fade-in">
           {activeTaskAlarm && (
-            <div style={{ position: "fixed", top: 12, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.95)", border: "1px solid rgba(255, 195, 160, 0.5)", borderRadius: 16, padding: "12px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 10px 30px rgba(0, 0, 0, 0.12)", zIndex: 250, width: "calc(100% - 32px)", maxWidth: 420, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <strong style={{ fontSize: 13 }}>Task due now</strong>
+            <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", width: "90%", maxWidth: 400, background: "linear-gradient(135deg, rgba(255, 175, 189, 0.95), rgba(255, 195, 160, 0.95))", border: "2px solid #ffafbd", borderRadius: 16, padding: 14, boxShadow: "0 12px 32px rgba(255, 154, 118, 0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🔔</span>
                 <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.8)" }}>{activeTaskAlarm.title}</span>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -558,8 +573,13 @@ export default function App() {
             </div>
           )}
           {toast && (
-            <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.9)", border: "1px solid rgba(255, 195, 160, 0.4)", borderRadius: 14, padding: "10px 14px", color: "#5a4a42", fontSize: 13, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)", zIndex: 200 }}>
-              {toast}
+            <div style={{ position: "fixed", bottom: 96, left: "50%", transform: "translateX(-50%)", background: "rgba(255, 255, 255, 0.95)", border: "1px solid rgba(255, 195, 160, 0.4)", borderRadius: 16, padding: "10px 18px", color: "#5a4a42", fontSize: 13, boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)", zIndex: 200, display: "flex", alignItems: "center", gap: 12 }}>
+              <span>{toast}</span>
+              {undoState && (
+                <button onClick={handleUndo} style={{ padding: "4px 10px", borderRadius: 8, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                  Undo ↩️
+                </button>
+              )}
             </div>
           )}
           <div style={{ paddingBottom: 90 }}>{screens[tab]}</div>
@@ -1146,8 +1166,9 @@ function SettingsScreen({
 // ═══════════════════════════════════════════════════════════════════════
 // TASKS SCREEN
 // ═══════════════════════════════════════════════════════════════════════
-function TasksScreen({ tasks, setTasks, onTaskAdded }) {
+function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
   const [showForm, setShowForm] = useState(false);
+  const [filterPriority, setFilterPriority] = useState("all");
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.done).length;
   const pendingTasks = totalTasks - completedTasks;
@@ -1159,15 +1180,36 @@ function TasksScreen({ tasks, setTasks, onTaskAdded }) {
   ];
 
   const addQuickTask = (title) => {
-    setTasks(p => [...p, { id: uid(), title, done: false, createdAt: now().toISOString() }]);
+    setTasks(p => [...p, { id: uid(), title, priority: "medium", done: false, createdAt: now().toISOString() }]);
     if (onTaskAdded) onTaskAdded(`Added "${title}"`);
   };
 
-  const sorted = [...tasks].sort((a, b) => {
+  const priorityWeight = { high: 3, medium: 2, low: 1 };
+  const pMeta = {
+    high: { label: "🔴 High", bg: "rgba(255, 154, 118, 0.15)", color: "#e65100" },
+    medium: { label: "🟡 Med", bg: "rgba(255, 211, 182, 0.25)", color: "#b78103" },
+    low: { label: "🟢 Low", bg: "rgba(168, 230, 207, 0.25)", color: "#2e7d32" }
+  };
+
+  const filtered = tasks.filter(t => filterPriority === "all" || (t.priority || "medium") === filterPriority);
+
+  const sorted = [...filtered].sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
     if (isOverdue(a) !== isOverdue(b)) return isOverdue(a) ? -1 : 1;
+    const pA = priorityWeight[a.priority || "medium"] || 2;
+    const pB = priorityWeight[b.priority || "medium"] || 2;
+    if (pA !== pB) return pB - pA;
     return 0;
   });
+
+  const deleteTask = (taskToDelete) => {
+    setTasks(p => p.filter(x => x.id !== taskToDelete.id));
+    if (showToast) {
+      showToast(`Task deleted`, () => {
+        setTasks(p => [...p, taskToDelete]);
+      });
+    }
+  };
 
   return (
     <div style={{ padding: "0 0 90px 0", position: "relative" }}>
@@ -1213,6 +1255,30 @@ function TasksScreen({ tasks, setTasks, onTaskAdded }) {
           </div>
         </div>
 
+        {/* Priority Filter Bar */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
+          {["all", "high", "medium", "low"].map(p => (
+            <button
+              key={p}
+              onClick={() => setFilterPriority(p)}
+              style={{
+                background: filterPriority === p ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "rgba(255, 255, 255, 0.6)",
+                border: filterPriority === p ? "none" : "1px solid rgba(255, 195, 160, 0.3)",
+                color: filterPriority === p ? "#fff" : "rgba(139, 126, 116, 0.7)",
+                borderRadius: 10,
+                padding: "6px 14px",
+                fontSize: 12,
+                fontWeight: filterPriority === p ? 700 : 500,
+                cursor: "pointer",
+                textTransform: "capitalize",
+                transition: "all 0.2s"
+              }}
+            >
+              {p === "all" ? "All Priorities" : p === "high" ? "🔴 High" : p === "medium" ? "🟡 Med" : "🟢 Low"}
+            </button>
+          ))}
+        </div>
+
       {showForm && <TaskForm onAdd={t => { setTasks(p => [...p, t]); setShowForm(false); }} onTaskAdded={onTaskAdded} />}
 
       {sorted.length === 0 ? (
@@ -1248,20 +1314,28 @@ function TasksScreen({ tasks, setTasks, onTaskAdded }) {
           </div>
         </div>
       ) : (
-        sorted.map(t => (
-          <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : "#ffc3a0"}` }}>
-            <button onClick={() => setTasks(p => p.map(x => x.id === t.id ? { ...x, done: !x.done } : x))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
-              {t.done && <Icon name="check" size={12} color="#fff" sw={3} />}
-            </button>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ color: t.done ? "rgba(139, 126, 116, 0.4)" : "#5a4a42", fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none" }}>{t.title}</p>
-              {(t.dueDate || t.dueTime) && <p style={{ color: isOverdue(t) ? "#ff9a76" : "rgba(139, 126, 116, 0.4)", fontSize: 11, marginTop: 2 }}>{isOverdue(t) ? "⚠ " : ""}Due {fmtDate(t.dueDate)}{t.dueTime ? ` at ${fmtTime(`${t.dueDate}T${t.dueTime}`)}` : ""}</p>}
+        sorted.map(t => {
+          const prio = pMeta[t.priority || "medium"];
+          return (
+            <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : "#ffc3a0"}` }}>
+              <button onClick={() => setTasks(p => p.map(x => x.id === t.id ? { ...x, done: !x.done } : x))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
+                {t.done && <Icon name="check" size={12} color="#fff" sw={3} />}
+              </button>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  <p style={{ color: t.done ? "rgba(139, 126, 116, 0.4)" : "#5a4a42", fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", margin: 0 }}>{t.title}</p>
+                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: prio.bg, color: prio.color, fontWeight: 700 }}>
+                    {prio.label}
+                  </span>
+                </div>
+                {(t.dueDate || t.dueTime) && <p style={{ color: isOverdue(t) ? "#ff9a76" : "rgba(139, 126, 116, 0.4)", fontSize: 11, marginTop: 2 }}>{isOverdue(t) ? "⚠ " : ""}Due {fmtDate(t.dueDate)}{t.dueTime ? ` at ${fmtTime(`${t.dueDate}T${t.dueTime}`)}` : ""}</p>}
+              </div>
+              <button onClick={() => deleteTask(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
+                <Icon name="trash" size={16} />
+              </button>
             </div>
-            <button onClick={() => setTasks(p => p.filter(x => x.id !== t.id))} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
-              <Icon name="trash" size={16} />
-            </button>
-          </div>
-        ))
+          );
+        })
       )}
       </div>
     </div>
@@ -1272,6 +1346,7 @@ function TaskForm({ onAdd, onTaskAdded }) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
+  const [priority, setPriority] = useState("medium");
 
   const submit = () => {
     if (!title.trim()) return;
@@ -1282,8 +1357,8 @@ function TaskForm({ onAdd, onTaskAdded }) {
     } else if (onTaskAdded) {
       onTaskAdded(msg);
     }
-    onAdd({ id: uid(), title: title.trim(), dueDate: dueDate || null, dueTime: dueTime || null, done: false, createdAt: now().toISOString(), notified: false, overdueNotified: false });
-    setTitle(""); setDueDate(""); setDueTime("");
+    onAdd({ id: uid(), title: title.trim(), dueDate: dueDate || null, dueTime: dueTime || null, priority: priority || "medium", done: false, createdAt: now().toISOString(), notified: false, overdueNotified: false });
+    setTitle(""); setDueDate(""); setDueTime(""); setPriority("medium");
   };
 
   return (
@@ -1294,6 +1369,35 @@ function TaskForm({ onAdd, onTaskAdded }) {
         <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ flex: 1, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.25)", borderRadius: 10, padding: "8px 12px", color: dueDate ? "#5a4a42" : "rgba(139, 126, 116, 0.4)", fontSize: 12, outline: "none", colorScheme: "light" }} />
         <input type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} style={{ flex: 1, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.25)", borderRadius: 10, padding: "8px 12px", color: dueTime ? "#5a4a42" : "rgba(139, 126, 116, 0.4)", fontSize: 12, outline: "none", colorScheme: "light" }} />
       </div>
+
+      <div style={{ display: "flex", gap: 6, marginTop: 10, alignItems: "center" }}>
+        <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", fontWeight: 600, marginRight: 4 }}>Priority:</span>
+        {[
+          { id: "high", label: "🔴 High" },
+          { id: "medium", label: "🟡 Med" },
+          { id: "low", label: "🟢 Low" }
+        ].map(p => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => setPriority(p.id)}
+            style={{
+              flex: 1,
+              padding: "6px 0",
+              borderRadius: 8,
+              border: priority === p.id ? "1.5px solid #ff9a76" : "1px solid rgba(139, 126, 116, 0.2)",
+              background: priority === p.id ? "rgba(255, 195, 160, 0.25)" : "rgba(255, 255, 255, 0.6)",
+              fontSize: 11,
+              fontWeight: priority === p.id ? 700 : 500,
+              color: "#5a4a42",
+              cursor: "pointer"
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
       <button onClick={submit} style={{ width: "100%", marginTop: 12, padding: "11px 0", borderRadius: 12, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Add Task</button>
     </div>
   );
@@ -1869,11 +1973,60 @@ function InsightsPanel({ moodLog, energyLog, gratitude }) {
   const totalCheckIns = moodLog ? moodLog.length : 0;
   const totalGratitudes = gratitude ? Object.keys(gratitude).length : 0;
 
+  const moodMeta = {
+    amazing: { label: "Amazing", score: 5, color: "#a8e6cf", emoji: "😄" },
+    good: { label: "Good", score: 4, color: "#dcedc1", emoji: "😊" },
+    okay: { label: "Okay", score: 3, color: "#ffd3b6", emoji: "😐" },
+    struggling: { label: "Struggling", score: 2, color: "#ffafbd", emoji: "😔" },
+    overwhelmed: { label: "Overwhelmed", score: 1, color: "#ff9a76", emoji: "😰" },
+  };
+
+  const days14 = Array.from({ length: 14 }, (_, i) => {
+    const d = now();
+    d.setDate(d.getDate() - (13 - i));
+    const key = d.toISOString().slice(0, 10);
+    const dayName = d.toLocaleDateString("en-US", { weekday: "narrow" });
+    const dayEntry = moodLog ? moodLog.filter(m => m.date === key).slice(-1)[0] : null;
+    return { key, label: dayName, entry: dayEntry };
+  });
+
+  const positiveDays = days14.filter(d => d.entry && (d.entry.mood === "amazing" || d.entry.mood === "good")).length;
+
   return (
     <div>
       <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>
-        Your weekly emotional health & life balance overview.
+        Your 14-day emotional health & life balance overview.
       </p>
+
+      {/* 14-DAY EMOTIONAL BALANCE CHART */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", margin: 0 }}>🌊 14-Day Emotional Balance</p>
+          <span style={{ fontSize: 11, color: "#2d6a4f", background: "rgba(168, 230, 207, 0.3)", padding: "3px 8px", borderRadius: 8, fontWeight: 700 }}>
+            {positiveDays} Positive Days
+          </span>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(14, 1fr)", gap: 4, alignItems: "flex-end", height: 100, paddingBottom: 4 }}>
+          {days14.map(d => {
+            const meta = d.entry ? moodMeta[d.entry.mood] : null;
+            const heightPercent = meta ? (meta.score / 5) * 100 : 15;
+            return (
+              <div key={d.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end" }} title={`${fmtDate(d.key)}: ${meta ? meta.label : "No check-in"}`}>
+                <div style={{ fontSize: 10, marginBottom: 2 }}>{meta ? meta.emoji : "·"}</div>
+                <div style={{
+                  width: "100%",
+                  height: `${heightPercent}%`,
+                  borderRadius: 4,
+                  background: meta ? meta.color : "rgba(139, 126, 116, 0.12)",
+                  transition: "all 0.3s ease"
+                }} />
+                <div style={{ fontSize: 8, color: "rgba(139, 126, 116, 0.5)", marginTop: 4 }}>{d.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>
         <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", marginBottom: 10 }}>📊 Weekly Mindful Balance</p>
@@ -2260,11 +2413,12 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments,
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => {
-      const dataUrl = ev.target.result;
+    reader.onload = async (ev) => {
+      const rawDataUrl = ev.target.result;
+      const compressedDataUrl = await compressImage(rawDataUrl, 800, 0.75);
       const caption = prompt("Add a caption:");
       const emotion = prompt("How did this make you feel?");
-      setPhotos(p => [...p, { id: uid(), dataUrl, caption: caption || "", emotion: emotion || "", date: now().toISOString() }]);
+      setPhotos(p => [...p, { id: uid(), dataUrl: compressedDataUrl, caption: caption || "", emotion: emotion || "", date: now().toISOString() }]);
     };
     reader.readAsDataURL(file);
   };
