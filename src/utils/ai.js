@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════
-// AI UTILITIES (Multi-Persona, Context Recall & Action Detection)
+// AI UTILITIES (Multi-Persona, Crisis Safeguards & Context Recall)
 // ═══════════════════════════════════════════════════════════════════════
 
 export const COMPANION_PERSONAS = {
@@ -36,7 +36,22 @@ export const COMPANION_PERSONAS = {
 const normalize = (text) => (text || "").toLowerCase();
 const truncateText = (text, max = 80) => (text.length > max ? `${text.slice(0, max - 3)}...` : text);
 
-// Detect Action Chips from User Messages
+// 🆘 Crisis / Distress Keyword Detection for Mental Health Safety
+export const detectCrisisKeywords = (messageText) => {
+  const msg = normalize(messageText);
+  const crisisRegex = /(suicid|self-harm|end my life|want to die|kill myself|cant go on|cannot go on|hurt myself|no reason to live|giving up on life|overdose)/i;
+  return crisisRegex.test(msg);
+};
+
+export const CRISIS_HELPLINES = [
+  { region: "US & Canada", name: "Suicide & Crisis Lifeline", number: "988", text: "Text HOME to 741741" },
+  { region: "India", name: "Tele-MANAS Emergency", number: "14416", subtext: "24/7 Free Helpline (Toll-Free 1800 891 4416)" },
+  { region: "India", name: "Vandrevala Foundation", number: "9999 666 555", subtext: "24/7 Mental Health Support" },
+  { region: "India", name: "AASRA Helpline", number: "91-9820466726", subtext: "24/7 Crisis Intervention" },
+  { region: "UK", name: "Samaritans UK", number: "116 123", subtext: "Free 24/7 Helpline" },
+  { region: "International", name: "Befrienders Worldwide", number: "findahelpline.com", subtext: "Global Helpline Directory" }
+];
+
 export const detectActionableSuggestions = (messageText) => {
   const msg = normalize(messageText);
   const chips = [];
@@ -60,10 +75,19 @@ export const detectActionableSuggestions = (messageText) => {
   return chips;
 };
 
-// Smart Offline Persona Engine
 export const getLocalChatReply = ({ userName, meaningfulMoments = [], message, personaId = "empathic" }) => {
+  const name = userName || "friend";
+
+  // Check for crisis trigger first
+  if (detectCrisisKeywords(message)) {
+    return {
+      isCrisis: true,
+      reply: `I hear how much weight and pain you're carrying right now, ${name}. Please know that you don't have to carry this alone. Saathi is an AI wellness tracker and cannot provide emergency care, but there are compassionate people ready to listen and support you 24/7.`,
+      disclaimer: "⚠️ Saathi is an AI companion for personal wellness tracking and is not a substitute for professional medical or mental health care."
+    };
+  }
+
   const msg = normalize(message);
-  const name = userName || "there";
   const lastMoment = meaningfulMoments.slice().reverse().find(m => m && m.text);
   const memoryLine = lastMoment ? `I remember you noted: "${truncateText(lastMoment.text)}". ` : "";
 
@@ -88,9 +112,9 @@ export const getLocalChatReply = ({ userName, meaningfulMoments = [], message, p
   } else {
     // Default Empathic Persona
     if (/^(hi|hello|hey)\b/.test(msg)) {
-      reply = `Hi ${name}. I'm here with you. How are you feeling right now?`;
+      reply = `Hi ${name}. I'm right here with you. How are you feeling right now?`;
     } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
-      reply = `I'm really sorry you're feeling that way. ${memoryLine}Do you want to share what's weighing on you most?`;
+      reply = `I'm really sorry you're feeling that way, ${name}. ${memoryLine}Do you want to share what's weighing on you most?`;
     } else if (/(happy|good|great|excited|proud|grateful|relieved)/.test(msg)) {
       reply = `I'm glad to hear that! ${memoryLine}Want to capture what made it feel good?`;
     } else if (/(tired|exhaust|sleep|burnout)/.test(msg)) {
@@ -98,9 +122,9 @@ export const getLocalChatReply = ({ userName, meaningfulMoments = [], message, p
     } else if (/(task|todo|plan|habit|goal|focus|procrast)/.test(msg)) {
       reply = "We can break it into one small step. What's the tiniest next action you can do in 5 minutes?";
     } else if (/thank|thanks/.test(msg)) {
-      reply = "You're welcome. I'm here for you. Want to keep going or pause for a breath?";
+      reply = "You're welcome! I'm always here for you. Want to keep going or pause for a breath?";
     } else {
-      reply = `Thanks for sharing that. ${memoryLine}What feels most important to you right now?`;
+      reply = `Thanks for sharing that, ${name}. ${memoryLine}What feels most important to you right now?`;
     }
   }
 
@@ -111,11 +135,20 @@ export const getLocalChatReply = ({ userName, meaningfulMoments = [], message, p
   ];
 
   const extra = followUps[(message.length || 1) % followUps.length];
-  return `${reply} ${extra}`.replace(/\s+/g, " ").trim();
+  const fullText = `${reply} ${extra}`.replace(/\s+/g, " ").trim();
+
+  return {
+    isCrisis: false,
+    reply: fullText,
+    disclaimer: null
+  };
 };
 
-// Optional External API Call (Gemini / Claude)
 export const callExternalAIModel = async ({ prompt, systemPrompt, apiKey, provider = "gemini" }) => {
+  if (detectCrisisKeywords(prompt)) {
+    return "I hear how much pain you're carrying right now. Please reach out to a trusted professional or emergency helpline (like 988 or Tele-MANAS 14416). You don't have to go through this alone.";
+  }
+
   if (provider === "gemini" && apiKey) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
     const response = await fetch(url, {

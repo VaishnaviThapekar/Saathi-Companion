@@ -83,7 +83,11 @@ export default function HomeScreen({
     const submitCheckIn = () => {
         if (!mood) return;
         const entry = { id: now().toISOString(), date: today, mood, struggles, timestamp: now().toISOString() };
-        setMoodLog(p => (Array.isArray(p) ? [...p, entry] : [entry]));
+        setMoodLog(p => {
+            const list = Array.isArray(p) ? p : [];
+            const filtered = list.filter(item => item.date !== today);
+            return [...filtered, entry];
+        });
         setDailyCheckIn(entry);
         setLastCheckInDate(today);
         setShowCheckIn(false);

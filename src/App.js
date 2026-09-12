@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import HomeScreen from "./components/screens/HomeScreen";
 import LoginScreen from "./components/screens/LoginScreen";
-import { isAuthenticated, logout } from "./utils/auth";
-import { detectActionableSuggestions } from "./utils/ai";
+import { isAuthenticated, logout, getPinLockoutStatus, recordFailedPinAttempt, clearPinLockout } from "./utils/auth";
+import { detectActionableSuggestions, CRISIS_HELPLINES } from "./utils/ai";
+import { getStorageQuota } from "./utils/storage";
 import { playChimeSound } from "./services/soundService";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -593,15 +594,43 @@ function NameSetup({ onSet }) {
 function LockScreen({ onUnlock, lockPin, onReset }) {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [lockoutStatus, setLockoutStatus] = useState(getPinLockoutStatus());
+
+  useEffect(() => {
+    let timer;
+    if (lockoutStatus.locked) {
+      timer = setInterval(() => {
+        const s = getPinLockoutStatus();
+        setLockoutStatus(s);
+        if (!s.locked) clearInterval(timer);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [lockoutStatus.locked]);
 
   const submit = () => {
+    const status = getPinLockoutStatus();
+    if (status.locked) {
+      setError(`Too many attempts. Locked out for ${status.remainingSeconds}s.`);
+      return;
+    }
+
     if (pin === lockPin) {
+      clearPinLockout();
       setError("");
       setPin("");
       onUnlock();
       return;
     }
-    setError("Incorrect PIN");
+
+    const failedState = recordFailedPinAttempt();
+    setPin("");
+    if (failedState.locked) {
+      setLockoutStatus(failedState);
+      setError(`5 failed attempts. Locked out for 30 seconds.`);
+    } else {
+      setError(`Incorrect PIN. ${failedState.attemptsLeft} attempts remaining.`);
+    }
   };
 
   return (
@@ -611,11 +640,11 @@ function LockScreen({ onUnlock, lockPin, onReset }) {
       </div>
       <h1 style={{ color: "#8b7e74", fontSize: 28, fontFamily: "'Crimson Text', serif", marginBottom: 12, fontStyle: "italic" }}>Unlock</h1>
       <p style={{ color: "rgba(139, 126, 116, 0.6)", fontSize: 14, textAlign: "center", lineHeight: 1.7, marginBottom: 20 }}>Enter your PIN to continue.</p>
-      <input autoFocus type="password" inputMode="numeric" placeholder="PIN" value={pin} onChange={e => { setPin(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && submit()}
-        style={{ width: "100%", maxWidth: 240, padding: "14px 18px", borderRadius: 14, border: "2px solid rgba(255, 195, 160, 0.3)", background: "rgba(255, 255, 255, 0.8)", color: "#5a4a42", fontSize: 16, outline: "none", textAlign: "center", letterSpacing: 3 }} />
-      {error && <p style={{ color: "#ff9a76", fontSize: 12, marginTop: 8 }}>{error}</p>}
-      <button onClick={submit} style={{ marginTop: 16, width: "100%", maxWidth: 240, padding: "12px 0", borderRadius: 14, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-        Unlock
+      <input autoFocus disabled={lockoutStatus.locked} type="password" inputMode="numeric" placeholder="PIN" value={pin} onChange={e => { setPin(e.target.value); setError(""); }} onKeyDown={e => e.key === "Enter" && submit()}
+        style={{ width: "100%", maxWidth: 240, padding: "14px 18px", borderRadius: 14, border: "2px solid rgba(255, 195, 160, 0.3)", background: "rgba(255, 255, 255, 0.8)", color: "#5a4a42", fontSize: 16, outline: "none", textAlign: "center", letterSpacing: 3, opacity: lockoutStatus.locked ? 0.5 : 1 }} />
+      {error && <p style={{ color: "#ff9a76", fontSize: 12, marginTop: 8, textAlign: "center", maxWidth: 260 }}>{error}</p>}
+      <button onClick={submit} disabled={lockoutStatus.locked} style={{ marginTop: 16, width: "100%", maxWidth: 240, padding: "12px 0", borderRadius: 14, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: lockoutStatus.locked ? "not-allowed" : "pointer", opacity: lockoutStatus.locked ? 0.6 : 1 }}>
+        {lockoutStatus.locked ? `Locked (${lockoutStatus.remainingSeconds}s)` : "Unlock"}
       </button>
       <button onClick={onReset} style={{ marginTop: 10, background: "none", border: "none", color: "rgba(139, 126, 116, 0.6)", fontSize: 12, cursor: "pointer" }}>
         Reset lock
@@ -918,6 +947,30 @@ function SettingsScreen({
           <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>Daily notes: {Object.keys(dailyNotes || {}).length}</span>
         </div>
       </div>
+
+      {/* STORAGE QUOTA & ENCRYPTION CARD */}
+      {(() => {
+        const quota = getStorageQuota();
+        return (
+          <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16, borderLeft: quota.isHigh ? "4px solid #ff9a76" : "4px solid #a8e6cf" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+              <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, margin: 0 }}>🔒 Encrypted Storage & Quota</p>
+              <span style={{ fontSize: 11, fontWeight: 700, color: quota.isHigh ? "#d9534f" : "#2d6a4f" }}>{quota.usedMB} MB used</span>
+            </div>
+            <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.65)", lineHeight: 1.5, marginBottom: 8 }}>
+              Personal notes, memories & reflections are encrypted at rest in your browser's private vault.
+            </p>
+            <div style={{ width: "100%", height: 6, borderRadius: 3, background: "rgba(139,126,116,0.15)", overflow: "hidden" }}>
+              <div style={{ width: `${Math.max(4, quota.percentUsed)}%`, height: "100%", background: quota.isHigh ? "linear-gradient(90deg, #ffc3a0, #ff9a76)" : "linear-gradient(90deg, #a8e6cf, #dcedc1)" }} />
+            </div>
+            {quota.isHigh && (
+              <p style={{ fontSize: 11, color: "#d9534f", marginTop: 6, fontWeight: 600 }}>
+                ⚠️ Storage is over 80% full. Export a JSON backup to ensure your data stays safe!
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* SAATHI MEMORY BANK CARD */}
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
@@ -1706,9 +1759,10 @@ function GratitudePanel({ gratitude, setGratitude, today }) {
 
 function EnergyPanel({ energyLog, setEnergyLog, today }) {
   const addEnergy = (level) => {
+    const validLevel = Math.max(1, Math.min(10, Math.round(Number(level) || 1)));
     setEnergyLog(p => ({
       ...p,
-      [today]: [...(p[today] || []), { time: now().toISOString(), level }]
+      [today]: [...(p[today] || []), { time: now().toISOString(), level: validLevel }]
     }));
   };
 
@@ -2426,9 +2480,13 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
     setLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 350));
-    const reply = getLocalChatReply({ userName, meaningfulMoments, message: msg.content, personaId: selectedPersona });
+    const res = getLocalChatReply({ userName, meaningfulMoments, message: msg.content, personaId: selectedPersona });
+    const reply = typeof res === "object" ? res.reply : res;
+    const isCrisis = typeof res === "object" ? res.isCrisis : false;
+    const disclaimer = typeof res === "object" ? res.disclaimer : null;
     const suggestions = detectActionableSuggestions(msg.content);
-    setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, suggestions, time: now().toISOString() }] : [{ role: "assistant", content: reply, suggestions, time: now().toISOString() }]));
+
+    setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, isCrisis, disclaimer, suggestions, time: now().toISOString() }] : [{ role: "assistant", content: reply, isCrisis, disclaimer, suggestions, time: now().toISOString() }]));
     setLoading(false);
   };
 
@@ -2517,10 +2575,35 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
         )}
         {chatMsgs.map((m, i) => (
           <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", marginBottom: 12 }}>
-            <div style={{ maxWidth: "82%", padding: "10px 14px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: m.role === "user" ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "rgba(255, 255, 255, 0.75)", border: m.role === "assistant" ? "1px solid rgba(255, 195, 160, 0.25)" : "none", boxShadow: "0 4px 12px rgba(0,0,0,0.03)" }}>
-              <p style={{ color: m.role === "user" ? "#fff" : "#5a4a42", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</p>
+            <div style={{ maxWidth: "88%", padding: "12px 16px", borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px", background: m.role === "user" ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : m.isCrisis ? "linear-gradient(135deg, rgba(255, 175, 189, 0.2), rgba(255, 255, 255, 0.95))" : "rgba(255, 255, 255, 0.85)", border: m.isCrisis ? "2px solid #ffafbd" : m.role === "assistant" ? "1px solid rgba(255, 195, 160, 0.25)" : "none", boxShadow: "0 4px 14px rgba(0,0,0,0.04)" }}>
+              <p style={{ color: m.role === "user" ? "#fff" : "#5a4a42", fontSize: 14, lineHeight: 1.5, whiteSpace: "pre-wrap", margin: 0 }}>{m.content}</p>
               
-              {m.role === "assistant" && (
+              {/* CRISIS HELPLINE CARD */}
+              {m.isCrisis && (
+                <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid rgba(255, 175, 189, 0.4)" }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: "#d9534f", marginBottom: 8 }}>🆘 Free 24/7 Crisis Helplines:</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    {CRISIS_HELPLINES.map((h, idx) => (
+                      <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", borderRadius: 8, background: "rgba(255,255,255,0.8)", border: "1px solid rgba(217, 83, 79, 0.2)", fontSize: 11 }}>
+                        <div>
+                          <strong style={{ color: "#5a4a42" }}>{h.name} ({h.region})</strong>
+                          {h.subtext && <div style={{ fontSize: 10, color: "rgba(139,126,116,0.6)" }}>{h.subtext}</div>}
+                        </div>
+                        <a href={`tel:${h.number.replace(/\s+/g, '')}`} style={{ padding: "4px 8px", borderRadius: 6, background: "#d9534f", color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: 11 }}>
+                          📞 {h.number}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                  {m.disclaimer && (
+                    <p style={{ fontSize: 10, color: "rgba(139,126,116,0.75)", marginTop: 10, fontStyle: "italic", lineHeight: 1.4 }}>
+                      {m.disclaimer}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {m.role === "assistant" && !m.isCrisis && (
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 6, paddingTop: 4, borderTop: "1px border-dashed rgba(139, 126, 116, 0.1)" }}>
                   <span style={{ fontSize: 9, color: "rgba(139, 126, 116, 0.4)" }}>{fmtTime(m.time)}</span>
                   <button onClick={() => speakText(m.content)} style={{ background: "none", border: "none", color: "#ff9a76", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}>

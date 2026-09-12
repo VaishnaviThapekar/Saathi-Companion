@@ -1,114 +1,148 @@
 // ═══════════════════════════════════════════════════════════════════════
-// AUTHENTICATION UTILITY
+// AUTHENTICATION & PIN LOCKOUT UTILITY (SHA-256 Hashed PINs & Rate Limiting)
 // ═══════════════════════════════════════════════════════════════════════
-// 
-// Persistent Login: Session is stored in browser localStorage
-// - Same device = automatic login on return (no password needed)
-// - Different device = new login required (different localStorage)
-// - Sign out = session cleared from localStorage
-//
 
-// Simple hash function (not cryptographically secure - for demo purposes)
-// In production, use proper hashing libraries
-const hashPassword = async (password) => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+export const hashPassword = async (password) => {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 };
 
-// Get stored users data
+export const hashPin = async (pin) => {
+  return hashPassword(`__saathi_pin_salt_${pin}`);
+};
+
+const MAX_PIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 30 * 1000; // 30 seconds
+
+export const getPinLockoutStatus = () => {
+  try {
+    const raw = localStorage.getItem('__pin_lockout_state');
+    if (!raw) return { locked: false, attemptsLeft: MAX_PIN_ATTEMPTS, remainingSeconds: 0 };
+    const { attempts, lockedUntil } = JSON.parse(raw);
+    const now = Date.now();
+
+    if (lockedUntil && now < lockedUntil) {
+      const remainingSeconds = Math.ceil((lockedUntil - now) / 1000);
+      return { locked: true, attemptsLeft: 0, remainingSeconds };
+    }
+
+    if (lockedUntil && now >= lockedUntil) {
+      localStorage.removeItem('__pin_lockout_state');
+      return { locked: false, attemptsLeft: MAX_PIN_ATTEMPTS, remainingSeconds: 0 };
+    }
+
+    const attemptsLeft = Math.max(0, MAX_PIN_ATTEMPTS - attempts);
+    return { locked: false, attemptsLeft, remainingSeconds: 0 };
+  } catch {
+    return { locked: false, attemptsLeft: MAX_PIN_ATTEMPTS, remainingSeconds: 0 };
+  }
+};
+
+export const recordFailedPinAttempt = () => {
+  try {
+    const status = getPinLockoutStatus();
+    const currentAttempts = (MAX_PIN_ATTEMPTS - status.attemptsLeft) + 1;
+
+    if (currentAttempts >= MAX_PIN_ATTEMPTS) {
+      const lockedUntil = Date.now() + LOCKOUT_DURATION_MS;
+      localStorage.setItem('__pin_lockout_state', JSON.stringify({ attempts: currentAttempts, lockedUntil }));
+      return { locked: true, attemptsLeft: 0, remainingSeconds: 30 };
+    }
+
+    localStorage.setItem('__pin_lockout_state', JSON.stringify({ attempts: currentAttempts, lockedUntil: null }));
+    return { locked: false, attemptsLeft: MAX_PIN_ATTEMPTS - currentAttempts, remainingSeconds: 0 };
+  } catch {
+    return { locked: false, attemptsLeft: MAX_PIN_ATTEMPTS - 1, remainingSeconds: 0 };
+  }
+};
+
+export const clearPinLockout = () => {
+  localStorage.removeItem('__pin_lockout_state');
+};
+
 const getStoredUsers = () => {
-    try {
-        const usersData = localStorage.getItem('__auth_users');
-        return usersData ? JSON.parse(usersData) : {};
-    } catch {
-        return {};
-    }
+  try {
+    const usersData = localStorage.getItem('__auth_users');
+    return usersData ? JSON.parse(usersData) : {};
+  } catch {
+    return {};
+  }
 };
 
-// Save users data
 const saveStoredUsers = (users) => {
-    localStorage.setItem('__auth_users', JSON.stringify(users));
+  localStorage.setItem('__auth_users', JSON.stringify(users));
 };
 
-// Get current session
 export const getSession = () => {
-    try {
-        const session = localStorage.getItem('__auth_session');
-        return session ? JSON.parse(session) : null;
-    } catch {
-        return null;
-    }
+  try {
+    const session = localStorage.getItem('__auth_session');
+    return session ? JSON.parse(session) : null;
+  } catch {
+    return null;
+  }
 };
 
-// Set current session
 const setSession = (user) => {
-    localStorage.setItem('__auth_session', JSON.stringify(user));
+  localStorage.setItem('__auth_session', JSON.stringify(user));
 };
 
-// Clear session (logout)
 export const logout = () => {
-    localStorage.removeItem('__auth_session');
+  localStorage.removeItem('__auth_session');
 };
 
-// Register new user
 export const registerUser = async (username, password) => {
-    if (!username || username.length < 3) {
-        throw new Error('Username must be at least 3 characters');
-    }
-    if (!password || password.length < 6) {
-        throw new Error('Password must be at least 6 characters');
-    }
+  if (!username || username.length < 3) {
+    throw new Error('Username must be at least 3 characters');
+  }
+  if (!password || password.length < 6) {
+    throw new Error('Password must be at least 6 characters');
+  }
 
-    const users = getStoredUsers();
-    if (users[username]) {
-        throw new Error('Username already exists');
-    }
+  const users = getStoredUsers();
+  if (users[username]) {
+    throw new Error('Username already exists');
+  }
 
-    const hashedPassword = await hashPassword(password);
-    users[username] = {
-        username,
-        passwordHash: hashedPassword,
-        createdAt: new Date().toISOString()
-    };
+  const hashedPassword = await hashPassword(password);
+  users[username] = {
+    username,
+    passwordHash: hashedPassword,
+    createdAt: new Date().toISOString()
+  };
 
-    saveStoredUsers(users);
-
-    // Auto-login after registration
-    setSession({ username });
-    return { username };
+  saveStoredUsers(users);
+  setSession({ username });
+  return { username };
 };
 
-// Login user
 export const loginUser = async (username, password) => {
-    if (!username || !password) {
-        throw new Error('Username and password are required');
-    }
+  if (!username || !password) {
+    throw new Error('Username and password are required');
+  }
 
-    const users = getStoredUsers();
-    const user = users[username];
+  const users = getStoredUsers();
+  const user = users[username];
 
-    if (!user) {
-        throw new Error('Invalid username or password');
-    }
+  if (!user) {
+    throw new Error('Invalid username or password');
+  }
 
-    const hashedPassword = await hashPassword(password);
-    if (user.passwordHash !== hashedPassword) {
-        throw new Error('Invalid username or password');
-    }
+  const hashedPassword = await hashPassword(password);
+  if (user.passwordHash !== hashedPassword) {
+    throw new Error('Invalid username or password');
+  }
 
-    setSession({ username });
-    return { username };
+  setSession({ username });
+  return { username };
 };
 
-// Check if user is authenticated
 export const isAuthenticated = () => {
-    return getSession() !== null;
+  return getSession() !== null;
 };
 
-// Get current user
 export const getCurrentUser = () => {
-    return getSession();
+  return getSession();
 };
