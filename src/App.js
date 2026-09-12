@@ -231,9 +231,15 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [activeTaskAlarm, setActiveTaskAlarm] = useState(null);
+  const [theme, setTheme] = useState(() => localStorage.getItem("saathi_theme") || "pastel");
   const toastTimerRef = useRef(null);
   const alarmIntervalRef = useRef(null);
   const alarmTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    document.body.setAttribute("data-theme", theme);
+    localStorage.setItem("saathi_theme", theme);
+  }, [theme]);
 
   // ── Boot ──
   useEffect(() => {
@@ -537,7 +543,7 @@ export default function App() {
 
   // Authentication check first, then name setup, then main app
 
-  const shared = { userName, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, showToast, onLogout: () => { logout(); setAuthenticated(false); } };
+  const shared = { userName, theme, setTheme, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, showToast, onLogout: () => { logout(); setAuthenticated(false); } };
 
   const screens = {
     home: <HomeScreen {...shared} />,
@@ -768,6 +774,8 @@ function BottomNav({ tab, setTab, onLogout }) {
 
 function SettingsScreen({
   userName,
+  theme,
+  setTheme,
   tasks,
   setTasks,
   habits,
@@ -970,7 +978,7 @@ function SettingsScreen({
   };
 
   const formatSavedAt = (value) => {
-    if (!value) return "Not saved yet";
+    if (!value) return "Never";
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return "Unknown";
     return d.toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -992,13 +1000,47 @@ function SettingsScreen({
               Privacy & Settings
             </h2>
             <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
-              App PIN lock, data status & backup exports
+              App PIN lock, color themes & backup exports
             </p>
           </div>
         </div>
       </div>
 
       <div style={{ padding: "0 24px" }}>
+
+      {/* COLOR THEME SELECTION CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>Color Theme & Appearance 🎨</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 12 }}>Personalize Saathi's visual palette to match your mood.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {[
+            { id: "pastel", name: "🌸 Pastel Bloom", bg: "linear-gradient(135deg, #ffc3a0, #ffafbd)", text: "#fff" },
+            { id: "ocean", name: "🌊 Ocean Serenity", bg: "linear-gradient(135deg, #80deea, #4dd0e1)", text: "#fff" },
+            { id: "forest", name: "🌿 Forest Calm", bg: "linear-gradient(135deg, #a8e6cf, #dcedc1)", text: "#2b4c3f" },
+            { id: "midnight", name: "🌙 Midnight Dark", bg: "linear-gradient(135deg, #2d2438, #1a1625)", text: "#ffd3b6" },
+          ].map(th => (
+            <button
+              key={th.id}
+              onClick={() => setTheme(th.id)}
+              style={{
+                padding: "12px 10px",
+                borderRadius: 12,
+                background: th.bg,
+                border: theme === th.id ? "2.5px solid #ff9a76" : "1px solid rgba(255, 255, 255, 0.3)",
+                color: th.text,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                textAlign: "center",
+                boxShadow: theme === th.id ? "0 6px 18px rgba(0,0,0,0.15)" : "none",
+                transition: "all 0.2s ease"
+              }}
+            >
+              {th.name}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 6 }}>Data status</p>
