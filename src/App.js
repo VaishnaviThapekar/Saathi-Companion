@@ -565,6 +565,8 @@ export default function App() {
         <NameSetup onSet={(n) => { setUserName(n); setLastSavedAt(now().toISOString()); }} />
       ) : (
         <div className="app-shell fade-in">
+          <div className="ambient-orb-1" />
+          <div className="ambient-orb-2" />
           {activeTaskAlarm && (
             <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", width: "90%", maxWidth: 400, background: "linear-gradient(135deg, rgba(255, 175, 189, 0.95), rgba(255, 195, 160, 0.95))", border: "2px solid #ffafbd", borderRadius: 16, padding: 14, boxShadow: "0 12px 32px rgba(255, 154, 118, 0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -588,7 +590,7 @@ export default function App() {
               )}
             </div>
           )}
-          <div style={{ paddingBottom: 90 }}>{screens[tab]}</div>
+          <div key={tab} className="page-spring" style={{ paddingBottom: 90, position: "relative", zIndex: 1 }}>{screens[tab]}</div>
           <BottomNav tab={tab} setTab={setTab} onLogout={() => { logout(); setAuthenticated(false); }} />
         </div>
       )}
@@ -1014,10 +1016,11 @@ function SettingsScreen({
         <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 12 }}>Personalize Saathi's visual palette to match your mood.</p>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
           {[
-            { id: "pastel", name: "🌸 Pastel Bloom", bg: "linear-gradient(135deg, #ffc3a0, #ffafbd)", text: "#fff" },
-            { id: "ocean", name: "🌊 Ocean Serenity", bg: "linear-gradient(135deg, #80deea, #4dd0e1)", text: "#fff" },
-            { id: "forest", name: "🌿 Forest Calm", bg: "linear-gradient(135deg, #a8e6cf, #dcedc1)", text: "#2b4c3f" },
-            { id: "midnight", name: "🌙 Midnight Dark", bg: "linear-gradient(135deg, #2d2438, #1a1625)", text: "#ffd3b6" },
+            { id: "pastel", name: "🌸 Pastel Bloom", bg: "linear-gradient(135deg, #ff9a76, #ff6b81)", text: "#fff" },
+            { id: "ocean", name: "🌊 Ocean Serenity", bg: "linear-gradient(135deg, #00c9a7, #00878a)", text: "#fff" },
+            { id: "forest", name: "🌿 Emerald Forest", bg: "linear-gradient(135deg, #00b894, #55efc4)", text: "#fff" },
+            { id: "midnight", name: "🌙 Royal Midnight", bg: "linear-gradient(135deg, #e056fd, #686de0)", text: "#fff" },
+            { id: "aurora", name: "🌅 Sunset Aurora", bg: "linear-gradient(135deg, #f0932b, #eb4d4b, #6c5ce7)", text: "#fff" },
           ].map(th => (
             <button
               key={th.id}
@@ -1026,14 +1029,15 @@ function SettingsScreen({
                 padding: "12px 10px",
                 borderRadius: 12,
                 background: th.bg,
-                border: theme === th.id ? "2.5px solid #ff9a76" : "1px solid rgba(255, 255, 255, 0.3)",
+                border: theme === th.id ? "2.5px solid #ffffff" : "1px solid rgba(255, 255, 255, 0.3)",
                 color: th.text,
                 fontSize: 12,
                 fontWeight: 700,
                 cursor: "pointer",
                 textAlign: "center",
-                boxShadow: theme === th.id ? "0 6px 18px rgba(0,0,0,0.15)" : "none",
-                transition: "all 0.2s ease"
+                boxShadow: theme === th.id ? "0 8px 24px rgba(0,0,0,0.25)" : "0 4px 12px rgba(0,0,0,0.08)",
+                transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                gridColumn: th.id === "aurora" ? "1 / -1" : "auto"
               }}
             >
               {th.name}
