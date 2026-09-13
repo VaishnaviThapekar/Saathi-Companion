@@ -73,6 +73,17 @@ const Icon = ({ name, size = 22, color = "currentColor", sw = 1.8 }) => {
 };
 
 // ═════════════════════════════════════════════════════════════════════════
+// LIFE DOMAIN CATEGORIES
+// ═════════════════════════════════════════════════════════════════════════
+export const LIFE_DOMAINS = {
+  work: { id: "work", label: "💼 Work", name: "Work & Career", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.15)" },
+  health: { id: "health", label: "🏃 Health", name: "Health & Fitness", color: "#10b981", bg: "rgba(16, 185, 129, 0.15)" },
+  mind: { id: "mind", label: "🧘 Mind", name: "Mind & Spirit", color: "#8b5cf6", bg: "rgba(139, 92, 246, 0.15)" },
+  family: { id: "family", label: "🏡 Family", name: "Family & Home", color: "#f59e0b", bg: "rgba(245, 158, 11, 0.15)" },
+  learning: { id: "learning", label: "📚 Growth", name: "Growth & Learning", color: "#ec4899", bg: "rgba(236, 72, 153, 0.15)" }
+};
+
+// ═════════════════════════════════════════════════════════════════════════
 // UTILS
 // ═════════════════════════════════════════════════════════════════════════
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
@@ -238,6 +249,8 @@ export default function App() {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [activeTaskAlarm, setActiveTaskAlarm] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("saathi_theme") || "pastel");
+  const [fontScale, setFontScale] = useState(() => localStorage.getItem("saathi_font_scale") || "medium");
+  const [uiDensity, setUiDensity] = useState(() => localStorage.getItem("saathi_ui_density") || "comfortable");
 
   // 5 Feature Upgrade States
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -255,6 +268,16 @@ export default function App() {
     document.body.setAttribute("data-theme", theme);
     localStorage.setItem("saathi_theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.body.setAttribute("data-font-scale", fontScale);
+    localStorage.setItem("saathi_font_scale", fontScale);
+  }, [fontScale]);
+
+  useEffect(() => {
+    document.body.setAttribute("data-density", uiDensity);
+    localStorage.setItem("saathi_ui_density", uiDensity);
+  }, [uiDensity]);
 
   // Online / Offline & PWA Install Listener
   useEffect(() => {
@@ -637,6 +660,7 @@ export default function App() {
     setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon,
     setTab: (t) => { playTabSwitch(); setTab(t); }, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, showToast,
     onLogout: () => { logout(); setAuthenticated(false); },
+    fontScale, setFontScale, uiDensity, setUiDensity,
     isOnline, soundOn, handleToggleSound, ambientType, handleAmbientChange, ambientVol, handleAmbientVolumeChange,
     deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF
   };
@@ -979,7 +1003,11 @@ function SettingsScreen({
   notifPermission,
   setNotifPermission,
   handleExportMarkdown,
-  handleExportPDF
+  handleExportPDF,
+  fontScale,
+  setFontScale,
+  uiDensity,
+  setUiDensity
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -1277,6 +1305,70 @@ function SettingsScreen({
         </div>
       </div>
 
+      {/* TEXT SIZE & DISPLAY DENSITY CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>Text Size & Display Density 🔍</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 12 }}>Customize text scaling and layout padding for comfort.</p>
+        
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ fontSize: 12, color: "#5a4a42", fontWeight: 600, display: "block", marginBottom: 6 }}>Font Size:</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[
+              { id: "small", label: "A Small" },
+              { id: "medium", label: "A Default" },
+              { id: "large", label: "A Large" }
+            ].map(f => (
+              <button
+                key={f.id}
+                onClick={() => setFontScale(f.id)}
+                style={{
+                  flex: 1,
+                  padding: "8px 0",
+                  borderRadius: 10,
+                  border: fontScale === f.id ? "2px solid #ff9a76" : "1px solid rgba(139, 126, 116, 0.2)",
+                  background: fontScale === f.id ? "rgba(255, 195, 160, 0.25)" : "rgba(255, 255, 255, 0.6)",
+                  color: "#5a4a42",
+                  fontSize: 12,
+                  fontWeight: fontScale === f.id ? 700 : 500,
+                  cursor: "pointer"
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label style={{ fontSize: 12, color: "#5a4a42", fontWeight: 600, display: "block", marginBottom: 6 }}>Layout Density:</label>
+          <div style={{ display: "flex", gap: 6 }}>
+            {[
+              { id: "compact", label: "Compact" },
+              { id: "comfortable", label: "Comfortable" },
+              { id: "spacious", label: "Spacious" }
+            ].map(d => (
+              <button
+                key={d.id}
+                onClick={() => setUiDensity(d.id)}
+                style={{
+                  flex: 1,
+                  padding: "8px 0",
+                  borderRadius: 10,
+                  border: uiDensity === d.id ? "2px solid #6366f1" : "1px solid rgba(139, 126, 116, 0.2)",
+                  background: uiDensity === d.id ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.6)",
+                  color: "#5a4a42",
+                  fontSize: 12,
+                  fontWeight: uiDensity === d.id ? 700 : 500,
+                  cursor: "pointer"
+                }}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 6 }}>Data status</p>
         <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 10 }}>Last saved: {formatSavedAt(lastSavedAt)}</p>
@@ -1506,6 +1598,7 @@ function SettingsScreen({
 function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
   const [showForm, setShowForm] = useState(false);
   const [filterPriority, setFilterPriority] = useState("all");
+  const [filterDomain, setFilterDomain] = useState("all");
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.done).length;
   const pendingTasks = totalTasks - completedTasks;
@@ -1517,7 +1610,7 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
   ];
 
   const addQuickTask = (title) => {
-    setTasks(p => [...p, { id: uid(), title, priority: "medium", done: false, createdAt: now().toISOString() }]);
+    setTasks(p => [...p, { id: uid(), title, priority: "medium", domain: "work", done: false, createdAt: now().toISOString() }]);
     if (onTaskAdded) onTaskAdded(`Added "${title}"`);
   };
 
@@ -1528,7 +1621,11 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
     low: { label: "🟢 Low", bg: "rgba(168, 230, 207, 0.25)", color: "#2e7d32" }
   };
 
-  const filtered = tasks.filter(t => filterPriority === "all" || (t.priority || "medium") === filterPriority);
+  const filtered = tasks.filter(t => {
+    const matchPriority = filterPriority === "all" || (t.priority || "medium") === filterPriority;
+    const matchDomain = filterDomain === "all" || (t.domain || "work") === filterDomain;
+    return matchPriority && matchDomain;
+  });
 
   const sorted = [...filtered].sort((a, b) => {
     if (a.done !== b.done) return a.done ? 1 : -1;
@@ -1592,6 +1689,45 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
           </div>
         </div>
 
+        {/* Life Domain Filter Bar */}
+        <div style={{ display: "flex", gap: 5, marginBottom: 8, overflowX: "auto" }}>
+          <button
+            onClick={() => setFilterDomain("all")}
+            style={{
+              padding: "5px 12px",
+              borderRadius: 10,
+              border: filterDomain === "all" ? "2px solid #6366f1" : "1px solid rgba(139, 126, 116, 0.2)",
+              background: filterDomain === "all" ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.6)",
+              color: "#5a4a42",
+              fontSize: 11,
+              fontWeight: filterDomain === "all" ? 700 : 500,
+              cursor: "pointer",
+              whiteSpace: "nowrap"
+            }}
+          >
+            All Domains
+          </button>
+          {Object.entries(LIFE_DOMAINS).map(([k, d]) => (
+            <button
+              key={k}
+              onClick={() => setFilterDomain(k)}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 10,
+                border: filterDomain === k ? `2px solid ${d.color}` : "1px solid rgba(139, 126, 116, 0.2)",
+                background: filterDomain === k ? d.bg : "rgba(255, 255, 255, 0.6)",
+                color: "#5a4a42",
+                fontSize: 11,
+                fontWeight: filterDomain === k ? 700 : 500,
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+
         {/* Priority Filter Bar */}
         <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
           {["all", "high", "medium", "low"].map(p => (
@@ -1653,8 +1789,9 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
       ) : (
         sorted.map(t => {
           const prio = pMeta[t.priority || "medium"];
+          const dom = LIFE_DOMAINS[t.domain || "work"] || LIFE_DOMAINS.work;
           return (
-            <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : "#ffc3a0"}` }}>
+            <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : dom.color}` }}>
               <button onClick={() => setTasks(p => p.map(x => {
                 if (x.id === t.id) {
                   if (!x.done) playTaskComplete();
@@ -1667,6 +1804,9 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                   <p style={{ color: t.done ? "rgba(139, 126, 116, 0.4)" : "#5a4a42", fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", margin: 0 }}>{t.title}</p>
+                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: dom.bg, color: dom.color, fontWeight: 700 }}>
+                    {dom.label}
+                  </span>
                   <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: prio.bg, color: prio.color, fontWeight: 700 }}>
                     {prio.label}
                   </span>
@@ -1690,6 +1830,7 @@ function TaskForm({ onAdd, onTaskAdded }) {
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
   const [priority, setPriority] = useState("medium");
+  const [domain, setDomain] = useState("work");
 
   const submit = () => {
     if (!title.trim()) return;
@@ -1700,8 +1841,19 @@ function TaskForm({ onAdd, onTaskAdded }) {
     } else if (onTaskAdded) {
       onTaskAdded(msg);
     }
-    onAdd({ id: uid(), title: title.trim(), dueDate: dueDate || null, dueTime: dueTime || null, priority: priority || "medium", done: false, createdAt: now().toISOString(), notified: false, overdueNotified: false });
-    setTitle(""); setDueDate(""); setDueTime(""); setPriority("medium");
+    onAdd({
+      id: uid(),
+      title: title.trim(),
+      dueDate: dueDate || null,
+      dueTime: dueTime || null,
+      priority: priority || "medium",
+      domain: domain || "work",
+      done: false,
+      createdAt: now().toISOString(),
+      notified: false,
+      overdueNotified: false
+    });
+    setTitle(""); setDueDate(""); setDueTime(""); setPriority("medium"); setDomain("work");
   };
 
   return (
@@ -1711,6 +1863,32 @@ function TaskForm({ onAdd, onTaskAdded }) {
       <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
         <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ flex: 1, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.25)", borderRadius: 10, padding: "8px 12px", color: dueDate ? "#5a4a42" : "rgba(139, 126, 116, 0.4)", fontSize: 12, outline: "none", colorScheme: "light" }} />
         <input type="time" value={dueTime} onChange={e => setDueTime(e.target.value)} style={{ flex: 1, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.25)", borderRadius: 10, padding: "8px 12px", color: dueTime ? "#5a4a42" : "rgba(139, 126, 116, 0.4)", fontSize: 12, outline: "none", colorScheme: "light" }} />
+      </div>
+
+      <div style={{ marginTop: 10 }}>
+        <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", fontWeight: 600, display: "block", marginBottom: 6 }}>Life Domain:</span>
+        <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
+          {Object.entries(LIFE_DOMAINS).map(([k, d]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setDomain(k)}
+              style={{
+                flex: "0 0 auto",
+                padding: "5px 10px",
+                borderRadius: 8,
+                border: domain === k ? `2px solid ${d.color}` : "1px solid rgba(139, 126, 116, 0.2)",
+                background: domain === k ? d.bg : "rgba(255, 255, 255, 0.6)",
+                color: "#5a4a42",
+                fontSize: 11,
+                fontWeight: domain === k ? 700 : 500,
+                cursor: "pointer"
+              }}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 6, marginTop: 10, alignItems: "center" }}>
@@ -1752,9 +1930,14 @@ function HabitsScreen({ habits, setHabits, showToast }) {
   const [showArchived, setShowArchived] = useState(false);
   const [reminderQuery, setReminderQuery] = useState("");
   const [reminderFilter, setReminderFilter] = useState("enabled");
+  const [filterDomain, setFilterDomain] = useState("all");
 
   const today = todayKey();
-  const visibleHabits = habits.filter(h => (showArchived ? true : !h.archived));
+  const visibleHabits = habits.filter(h => {
+    const matchArchived = showArchived ? true : !h.archived;
+    const matchDomain = filterDomain === "all" || (h.domain || "health") === filterDomain;
+    return matchArchived && matchDomain;
+  });
 
   const toggleCompletion = (habit) => {
     setHabits(p => p.map(h => {
@@ -1891,6 +2074,46 @@ function HabitsScreen({ habits, setHabits, showToast }) {
         </button>
       </div>
 
+      {/* Domain Filter Bar */}
+      <div style={{ display: "flex", gap: 5, marginBottom: 12, overflowX: "auto" }}>
+        <button
+          onClick={() => setFilterDomain("all")}
+          style={{
+            flex: "0 0 auto",
+            padding: "5px 12px",
+            borderRadius: 20,
+            border: filterDomain === "all" ? "none" : "1px solid rgba(139, 126, 116, 0.2)",
+            background: filterDomain === "all" ? "linear-gradient(135deg, #a8e6cf, #dcedc1)" : "rgba(255, 255, 255, 0.6)",
+            color: filterDomain === "all" ? "#fff" : "#5a4a42",
+            fontSize: 11,
+            fontWeight: filterDomain === "all" ? 700 : 500,
+            cursor: "pointer"
+          }}
+        >
+          All Domains
+        </button>
+        {Object.entries(LIFE_DOMAINS).map(([k, d]) => (
+          <button
+            key={k}
+            onClick={() => setFilterDomain(k)}
+            style={{
+              flex: "0 0 auto",
+              padding: "5px 12px",
+              borderRadius: 20,
+              border: filterDomain === k ? `2px solid ${d.color}` : "1px solid rgba(139, 126, 116, 0.2)",
+              background: filterDomain === k ? d.bg : "rgba(255, 255, 255, 0.6)",
+              color: "#5a4a42",
+              fontSize: 11,
+              fontWeight: filterDomain === k ? 700 : 500,
+              cursor: "pointer",
+              whiteSpace: "nowrap"
+            }}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+
       {showForm && <HabitForm onAdd={h => { setHabits(p => [...p, h]); setShowForm(false); }} />}
 
       {visibleHabits.length === 0 ? (
@@ -1901,15 +2124,15 @@ function HabitsScreen({ habits, setHabits, showToast }) {
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {[
-              { title: "🧘 Morning Meditation", color: "#a8e6cf" },
-              { title: "💧 Drink 8 Glasses Water", color: "#ffc3a0" },
-              { title: "📖 Read 10 Minutes", color: "#ffafbd" },
-              { title: "🚶 15-Minute Evening Walk", color: "#dcedc1" }
+              { title: "🧘 Morning Meditation", color: "#a8e6cf", domain: "mind" },
+              { title: "💧 Drink 8 Glasses Water", color: "#ffc3a0", domain: "health" },
+              { title: "📖 Read 10 Minutes", color: "#ffafbd", domain: "learning" },
+              { title: "🚶 15-Minute Evening Walk", color: "#dcedc1", domain: "health" }
             ].map((st, idx) => (
               <button
                 key={idx}
                 onClick={() => {
-                  setHabits(p => [...p, { id: uid(), title: st.title, schedule: "daily", goalPerWeek: 5, color: st.color, reminderEnabled: false, reminderTime: "", lastRemindedDate: null, createdAt: now().toISOString(), completions: [], archived: false }]);
+                  setHabits(p => [...p, { id: uid(), title: st.title, schedule: "daily", goalPerWeek: 5, color: st.color, domain: st.domain, reminderEnabled: false, reminderTime: "", lastRemindedDate: null, createdAt: now().toISOString(), completions: [], archived: false }]);
                 }}
                 style={{
                   padding: "10px 14px",
@@ -1937,6 +2160,7 @@ function HabitsScreen({ habits, setHabits, showToast }) {
           const isDoneToday = h.completions.includes(today);
           const weekCount = countWeekCompletions(h, now());
           const streak = h.schedule === "weekly" ? getWeeklyStreak(h) : getDailyStreak(h);
+          const dom = LIFE_DOMAINS[h.domain || "health"] || LIFE_DOMAINS.health;
           return (
             <div key={h.id} className="glass" style={{ borderRadius: 16, padding: "14px 16px", marginBottom: 12, borderLeft: `4px solid ${h.color}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1946,6 +2170,9 @@ function HabitsScreen({ habits, setHabits, showToast }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                     <p style={{ color: "#5a4a42", fontSize: 15, fontWeight: 600, margin: 0 }}>{h.title}</p>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: dom.bg, color: dom.color, fontWeight: 700 }}>
+                      {dom.label}
+                    </span>
                     {streak >= 3 && (
                       <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: streak >= 30 ? "rgba(255, 195, 160, 0.3)" : streak >= 7 ? "rgba(255, 175, 189, 0.3)" : "rgba(168, 230, 207, 0.3)", color: "#5a4a42", fontWeight: 700 }}>
                         {streak >= 30 ? `👑 ${streak}d Legend` : streak >= 7 ? `🔥 ${streak}d Streak` : `🏆 ${streak}d Streak`}
@@ -2066,6 +2293,7 @@ function HabitForm({ onAdd }) {
   const [schedule, setSchedule] = useState("daily");
   const [goalPerWeek, setGoalPerWeek] = useState(3);
   const [color, setColor] = useState("#ffc3a0");
+  const [domain, setDomain] = useState("health");
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [reminderTime, setReminderTime] = useState("");
 
@@ -2079,6 +2307,7 @@ function HabitForm({ onAdd }) {
       schedule,
       goalPerWeek: schedule === "weekly" ? Number(goalPerWeek) : 1,
       color,
+      domain: domain || "health",
       reminderEnabled: reminderEnabled && !!reminderTime,
       reminderTime: reminderEnabled ? reminderTime : "",
       lastRemindedDate: null,
@@ -2090,6 +2319,7 @@ function HabitForm({ onAdd }) {
     setSchedule("daily");
     setGoalPerWeek(3);
     setColor("#ffc3a0");
+    setDomain("health");
     setReminderEnabled(false);
     setReminderTime("");
   };
@@ -2115,6 +2345,32 @@ function HabitForm({ onAdd }) {
         )}
       </div>
 
+      <div style={{ marginBottom: 10 }}>
+        <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", fontWeight: 600, display: "block", marginBottom: 6 }}>Life Domain:</span>
+        <div style={{ display: "flex", gap: 5, overflowX: "auto" }}>
+          {Object.entries(LIFE_DOMAINS).map(([k, d]) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setDomain(k)}
+              style={{
+                flex: "0 0 auto",
+                padding: "5px 10px",
+                borderRadius: 8,
+                border: domain === k ? `2px solid ${d.color}` : "1px solid rgba(139, 126, 116, 0.2)",
+                background: domain === k ? d.bg : "rgba(255, 255, 255, 0.6)",
+                color: "#5a4a42",
+                fontSize: 11,
+                fontWeight: domain === k ? 700 : 500,
+                cursor: "pointer"
+              }}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
         {colors.map(c => (
           <button key={c} onClick={() => setColor(c)} style={{ width: 24, height: 24, borderRadius: 12, border: c === color ? "2px solid rgba(90, 74, 66, 0.6)" : "2px solid transparent", background: c, cursor: "pointer" }} />
@@ -2136,7 +2392,7 @@ function HabitForm({ onAdd }) {
 }
 
 // WELLNESS SCREEN - Features 3, 5, 6, 7, 8, 9
-function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, setMeaningfulMoments, showToast }) {
+function WellnessScreen({ tasks = [], habits = [], gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, setMeaningfulMoments, showToast }) {
   const [sub, setSub] = useState("breathe");
   const today = todayKey();
 
@@ -2176,7 +2432,7 @@ function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, mood
         {sub === "mood" && <MoodTimelinePanel moodLog={moodLog} />}
         {sub === "affirmations" && <AffirmationsPanel affirmations={affirmations} generateAffirmation={generateAffirmation} />}
         {sub === "voice" && <VoicePanel voiceNotes={voiceNotes} setVoiceNotes={setVoiceNotes} showToast={showToast} />}
-        {sub === "insights" && <InsightsPanel moodLog={moodLog} energyLog={energyLog} gratitude={gratitude} />}
+        {sub === "insights" && <InsightsPanel tasks={tasks} habits={habits} moodLog={moodLog} energyLog={energyLog} gratitude={gratitude} />}
       </div>
     </div>
   );
@@ -2325,7 +2581,7 @@ function MoodTimelinePanel({ moodLog }) {
   );
 }
 
-function InsightsPanel({ moodLog, energyLog, gratitude }) {
+function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude }) {
   const totalCheckIns = moodLog ? moodLog.length : 0;
   const totalGratitudes = gratitude ? Object.keys(gratitude).length : 0;
 
@@ -2353,6 +2609,33 @@ function InsightsPanel({ moodLog, energyLog, gratitude }) {
       <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>
         Your 14-day emotional health & life balance overview.
       </p>
+
+      {/* LIFE DOMAIN BALANCE CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", marginBottom: 10 }}>⚖️ Life Domain Balance</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {Object.entries(LIFE_DOMAINS).map(([k, dom]) => {
+            const domainTasks = tasks.filter(t => (t.domain || "work") === k);
+            const domainHabits = habits.filter(h => (h.domain || "health") === k);
+            const taskDone = domainTasks.filter(t => t.done).length;
+            const score = domainTasks.length > 0 ? Math.round((taskDone / domainTasks.length) * 100) : (domainHabits.length > 0 ? 100 : 0);
+
+            return (
+              <div key={k} style={{ padding: "8px 12px", borderRadius: 10, background: dom.bg, border: `1px solid ${dom.color}40` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#5a4a42" }}>{dom.label}</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: dom.color }}>
+                    {domainTasks.length} tasks ({taskDone} done) · {domainHabits.length} habits
+                  </span>
+                </div>
+                <div style={{ width: "100%", height: 6, borderRadius: 3, background: "rgba(255,255,255,0.6)", overflow: "hidden" }}>
+                  <div style={{ width: `${Math.min(100, Math.max(8, score))}%`, height: "100%", background: dom.color, borderRadius: 3, transition: "width 0.3s" }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {/* 14-DAY EMOTIONAL BALANCE CHART */}
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>

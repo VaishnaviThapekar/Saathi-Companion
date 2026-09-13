@@ -94,6 +94,26 @@ html {
   scroll-behavior: smooth;
 }
 
+/* Font Scaling & Layout Density Controls */
+[data-font-scale="small"] {
+  font-size: 13.5px;
+}
+[data-font-scale="medium"] {
+  font-size: 15px;
+}
+[data-font-scale="large"] {
+  font-size: 17px;
+}
+
+[data-density="compact"] .glass {
+  padding: 10px !important;
+  margin-bottom: 8px !important;
+}
+[data-density="spacious"] .glass {
+  padding: 22px !important;
+  margin-bottom: 18px !important;
+}
+
 /* App shell for a real app feel */
 .app-shell {
   width: 100%;
