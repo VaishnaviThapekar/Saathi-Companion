@@ -2136,8 +2136,8 @@ function HabitForm({ onAdd }) {
 }
 
 // WELLNESS SCREEN - Features 3, 5, 6, 7, 8, 9
-function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, showToast }) {
-  const [sub, setSub] = useState("gratitude");
+function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, setMeaningfulMoments, showToast }) {
+  const [sub, setSub] = useState("breathe");
   const today = todayKey();
 
   return (
@@ -2156,7 +2156,7 @@ function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, mood
               Wellness & Presence
             </h2>
             <p style={{ fontSize: 13, color: "rgba(255, 255, 255, 0.9)", marginTop: 4, fontWeight: 500 }}>
-              Gratitude, mood timeline, energy & mindful breath
+              Guided breathwork, grounding reset, gratitude & mood
             </p>
           </div>
         </div>
@@ -2164,16 +2164,17 @@ function WellnessScreen({ gratitude, setGratitude, energyLog, setEnergyLog, mood
 
       <div style={{ padding: "0 24px" }}>
         <div style={{ display: "flex", gap: 5, marginBottom: 16, background: "rgba(255, 255, 255, 0.5)", borderRadius: 12, padding: 4, overflowX: "auto" }}>
-          {["gratitude", "energy", "mood", "affirmations", "breathe", "voice", "insights"].map(t => (
+          {["breathe", "grounding", "gratitude", "energy", "mood", "affirmations", "voice", "insights"].map(t => (
             <button key={t} onClick={() => setSub(t)} style={{ flex: "0 0 auto", background: sub === t ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent", border: "none", color: sub === t ? "#fff" : "rgba(139, 126, 116, 0.5)", borderRadius: 10, padding: "7px 14px", fontSize: 12, fontWeight: 500, cursor: "pointer", textTransform: "capitalize", transition: "all 0.2s", whiteSpace: "nowrap" }}>{t}</button>
           ))}
         </div>
 
+        {sub === "breathe" && <BreathePanel showToast={showToast} />}
+        {sub === "grounding" && <GroundingPanel setMeaningfulMoments={setMeaningfulMoments} showToast={showToast} />}
         {sub === "gratitude" && <GratitudePanel gratitude={gratitude} setGratitude={setGratitude} today={today} />}
         {sub === "energy" && <EnergyPanel energyLog={energyLog} setEnergyLog={setEnergyLog} today={today} />}
         {sub === "mood" && <MoodTimelinePanel moodLog={moodLog} />}
         {sub === "affirmations" && <AffirmationsPanel affirmations={affirmations} generateAffirmation={generateAffirmation} />}
-        {sub === "breathe" && <BreathePanel />}
         {sub === "voice" && <VoicePanel voiceNotes={voiceNotes} setVoiceNotes={setVoiceNotes} showToast={showToast} />}
         {sub === "insights" && <InsightsPanel moodLog={moodLog} energyLog={energyLog} gratitude={gratitude} />}
       </div>
@@ -2434,29 +2435,77 @@ function AffirmationsPanel({ affirmations, generateAffirmation }) {
   );
 }
 
-function BreathePanel() {
-  const [phase, setPhase] = useState("idle"); // idle | in | hold | out
+function BreathePanel({ showToast }) {
+  const [pattern, setPattern] = useState("4-4-6");
+  const [phase, setPhase] = useState("idle");
   const [count, setCount] = useState(0);
   const [cycles, setCycles] = useState(0);
+  const [targetCycles, setTargetCycles] = useState(5);
   const intervalRef = useRef(null);
 
+  const patterns = {
+    "4-4-6": { name: "🌬️ Calming 4-4-6", in: 4, hold: 4, out: 6, hold2: 0, desc: "Gentle pulse for stress & anxiety relief" },
+    "4-7-8": { name: "🌙 Sleep 4-7-8", in: 4, hold: 7, out: 8, hold2: 0, desc: "Deep relaxation & nervous system calming" },
+    "4-4-4-4": { name: "📦 Box 4-4-4-4", in: 4, hold: 4, out: 4, hold2: 4, desc: "Enhances mental focus & emotional clarity" },
+    "3-3-3": { name: "⚡ Energy 3-3-3", in: 3, hold: 3, out: 3, hold2: 0, desc: "Quick invigorating breath reset" }
+  };
+
+  const curr = patterns[pattern];
+
   const start = () => {
-    playChimeSound(528, 1.2);
+    playChimeSound(528, 1.2, 0.25);
     setPhase("in");
-    setCount(4);
+    setCount(curr.in);
     setCycles(0);
 
     intervalRef.current = setInterval(() => {
       setCount(c => {
         if (c <= 1) {
           setPhase(p => {
-            if (p === "in") { setCount(4); return "hold"; }
-            if (p === "hold") { playChimeSound(432, 1.2); setCount(6); return "out"; }
+            if (p === "in") {
+              if (curr.hold > 0) {
+                setCount(curr.hold);
+                playChimeSound(432, 1.0, 0.2);
+                return "hold";
+              }
+              setCount(curr.out);
+              playChimeSound(396, 1.2, 0.2);
+              return "out";
+            }
+            if (p === "hold") {
+              setCount(curr.out);
+              playChimeSound(396, 1.2, 0.2);
+              return "out";
+            }
             if (p === "out") {
-              playChimeSound(528, 1.2);
+              if (curr.hold2 > 0) {
+                setCount(curr.hold2);
+                playChimeSound(320, 0.8, 0.15);
+                return "hold2";
+              }
+              playChimeSound(528, 1.2, 0.25);
               setCycles(cy => {
-                if (cy >= 4) { stop(); return cy; }
-                setCount(4);
+                if (cy + 1 >= targetCycles) {
+                  stop();
+                  playChimeSound(659, 1.5, 0.3);
+                  if (showToast) showToast("Completed Breathing Session! 🌸");
+                  return cy + 1;
+                }
+                setCount(curr.in);
+                return cy + 1;
+              });
+              return "in";
+            }
+            if (p === "hold2") {
+              playChimeSound(528, 1.2, 0.25);
+              setCycles(cy => {
+                if (cy + 1 >= targetCycles) {
+                  stop();
+                  playChimeSound(659, 1.5, 0.3);
+                  if (showToast) showToast("Completed Breathing Session! 🌸");
+                  return cy + 1;
+                }
+                setCount(curr.in);
                 return cy + 1;
               });
               return "in";
@@ -2471,36 +2520,308 @@ function BreathePanel() {
   };
 
   const stop = () => {
-    clearInterval(intervalRef.current);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
     setPhase("idle");
-    setCycles(0);
   };
 
-  useEffect(() => () => clearInterval(intervalRef.current), []);
+  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
 
-  const colors = { idle: "#dcedc1", in: "#a8e6cf", hold: "#ffd3b6", out: "#ffafbd" };
+  const phaseColors = {
+    idle: "#dcedc1",
+    in: "linear-gradient(135deg, #a8e6cf, #b4d4ff)",
+    hold: "linear-gradient(135deg, #ffd3b6, #ffc3a0)",
+    out: "linear-gradient(135deg, #ffafbd, #ff9a76)",
+    hold2: "linear-gradient(135deg, #c3aed6, #b4d4ff)"
+  };
+
+  const phaseText = {
+    idle: "Ready",
+    in: "Breathe In 🌬️",
+    hold: "Hold ✋",
+    out: "Exhale 🍃",
+    hold2: "Rest 🧘"
+  };
 
   return (
-    <div style={{ textAlign: "center", padding: "20px 0" }}>
-      <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 24, lineHeight: 1.6 }}>Follow the circle. Breathe in, hold, breathe out.</p>
+    <div style={{ textAlign: "center", padding: "10px 0" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 16 }}>
+        {Object.entries(patterns).map(([k, v]) => (
+          <button
+            key={k}
+            onClick={() => { stop(); setPattern(k); }}
+            style={{
+              padding: "10px 8px",
+              borderRadius: 12,
+              border: pattern === k ? "2px solid #ff9a76" : "1px solid rgba(139, 126, 116, 0.2)",
+              background: pattern === k ? "rgba(255, 195, 160, 0.25)" : "rgba(255, 255, 255, 0.6)",
+              color: "#5a4a42",
+              fontSize: 12,
+              fontWeight: pattern === k ? 700 : 500,
+              cursor: "pointer",
+              textAlign: "left"
+            }}
+          >
+            <div>{v.name}</div>
+            <div style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.6)", fontWeight: 400 }}>{v.desc}</div>
+          </button>
+        ))}
+      </div>
 
-      <div style={{ position: "relative", width: 200, height: 200, margin: "0 auto 30px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ width: phase === "in" ? 160 : phase === "hold" ? 160 : 100, height: phase === "in" ? 160 : phase === "hold" ? 160 : 100, borderRadius: "50%", background: colors[phase], transition: phase === "idle" ? "none" : "all 1s ease-in-out", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 0 40px ${colors[phase]}` }}>
+      {phase === "idle" && (
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 20 }}>
+          <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", fontWeight: 600 }}>Target Cycles:</span>
+          {[3, 5, 10].map(c => (
+            <button
+              key={c}
+              onClick={() => setTargetCycles(c)}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 10,
+                border: targetCycles === c ? "1.5px solid #ff9a76" : "1px solid rgba(139, 126, 116, 0.2)",
+                background: targetCycles === c ? "rgba(255, 195, 160, 0.3)" : "rgba(255, 255, 255, 0.5)",
+                color: "#5a4a42",
+                fontSize: 12,
+                fontWeight: targetCycles === c ? 700 : 500,
+                cursor: "pointer"
+              }}
+            >
+              {c} cycles
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div style={{ position: "relative", width: 220, height: 220, margin: "0 auto 24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div
+          style={{
+            width: phase === "in" ? 180 : phase === "hold" ? 180 : phase === "out" ? 120 : 130,
+            height: phase === "in" ? 180 : phase === "hold" ? 180 : phase === "out" ? 120 : 130,
+            borderRadius: "50%",
+            background: phaseColors[phase] || phaseColors.idle,
+            transition: phase === "idle" ? "all 0.5s ease" : `all ${phase === "in" ? curr.in : phase === "hold" ? curr.hold : curr.out}s ease-in-out`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: phase === "idle" ? "0 8px 24px rgba(0,0,0,0.08)" : `0 0 50px ${phase === "in" ? "rgba(168, 230, 207, 0.6)" : phase === "hold" ? "rgba(255, 211, 182, 0.6)" : "rgba(255, 175, 189, 0.6)"}`
+          }}
+        >
           <div style={{ textAlign: "center" }}>
-            <p style={{ color: "#fff", fontSize: 32, fontWeight: 700 }}>{phase === "idle" ? "Ready" : count}</p>
-            <p style={{ color: "rgba(255, 255, 255, 0.8)", fontSize: 12, marginTop: 4, textTransform: "capitalize" }}>{phase === "idle" ? "" : phase === "in" ? "Breathe In" : phase === "hold" ? "Hold" : "Breathe Out"}</p>
+            <p style={{ color: "#fff", fontSize: 36, fontWeight: 800, margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
+              {phase === "idle" ? "Begin" : count}
+            </p>
+            <p style={{ color: "rgba(255, 255, 255, 0.95)", fontSize: 13, marginTop: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
+              {phaseText[phase]}
+            </p>
           </div>
         </div>
       </div>
 
       {phase === "idle" ? (
-        <button onClick={start} style={{ padding: "12px 32px", borderRadius: 12, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-          Start (5 cycles)
+        <button
+          onClick={start}
+          style={{
+            padding: "14px 40px",
+            borderRadius: 20,
+            background: "linear-gradient(135deg, #a8e6cf, #dcedc1)",
+            border: "none",
+            color: "#fff",
+            fontSize: 15,
+            fontWeight: 700,
+            cursor: "pointer",
+            boxShadow: "0 8px 24px rgba(168, 230, 207, 0.4)"
+          }}
+        >
+          ▶ Start Breathing ({curr.name})
         </button>
       ) : (
         <div>
-          <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginBottom: 10 }}>Cycle {cycles + 1} / 5</p>
-          <button onClick={stop} style={{ padding: "10px 24px", borderRadius: 10, background: "rgba(255, 154, 118, 0.15)", border: "1px solid rgba(255, 154, 118, 0.3)", color: "#ff9a76", fontSize: 13, fontWeight: 500, cursor: "pointer" }}>Stop</button>
+          <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.7)", marginBottom: 12, fontWeight: 600 }}>
+            Cycle <strong>{cycles + 1}</strong> of <strong>{targetCycles}</strong>
+          </p>
+          <button
+            onClick={stop}
+            style={{
+              padding: "10px 28px",
+              borderRadius: 14,
+              background: "rgba(255, 154, 118, 0.15)",
+              border: "1.5px solid rgba(255, 154, 118, 0.3)",
+              color: "#ff9a76",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+          >
+            ⏹ Stop Session
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function GroundingPanel({ setMeaningfulMoments, showToast }) {
+  const [step, setStep] = useState(5);
+  const [inputs, setInputs] = useState({ 5: [], 4: [], 3: [], 2: [], 1: [] });
+  const [tempInput, setTempInput] = useState("");
+
+  const stepsMeta = {
+    5: { title: "👁️ 5 Things You Can SEE", req: 5, prompt: "Look around your room. Name 5 distinct objects you see right now." },
+    4: { title: "🖐️ 4 Things You Can TOUCH", req: 4, prompt: "Feel your surroundings. Name 4 physical textures or objects you can touch." },
+    3: { title: "👂 3 Things You Can HEAR", req: 3, prompt: "Listen quietly. Name 3 background or ambient sounds around you." },
+    2: { title: "👃 2 Things You Can SMELL", req: 2, prompt: "Notice the air. Name 2 scents, perfumes, or ambient smells." },
+    1: { title: "👅 1 Thing You Can TASTE", req: 1, prompt: "Notice your mouth. Name 1 taste (water, mint, coffee, or clean air)." }
+  };
+
+  const currentMeta = stepsMeta[step];
+
+  const addItem = () => {
+    if (!tempInput.trim()) return;
+    setInputs(prev => ({
+      ...prev,
+      [step]: [...(prev[step] || []), tempInput.trim()]
+    }));
+    setTempInput("");
+  };
+
+  const handleNextStep = () => {
+    if (step > 1) {
+      playChimeSound(528, 0.6);
+      setStep(s => s - 1);
+      setTempInput("");
+    } else {
+      playChimeSound(659, 1.5, 0.3);
+      setStep(0);
+      if (setMeaningfulMoments) {
+        setMeaningfulMoments(p => [
+          ...p,
+          {
+            id: Date.now().toString(36),
+            date: new Date().toISOString(),
+            type: "helped",
+            text: "Completed 5-4-3-2-1 Sensory Grounding Exercise 🧘",
+            emotion: "Grounded & Calm"
+          }
+        ]);
+      }
+      if (showToast) showToast("Completed 5-4-3-2-1 Grounding! Saved to Memories 🌟");
+    }
+  };
+
+  return (
+    <div style={{ padding: "10px 0" }}>
+      {step > 0 ? (
+        <div className="glass" style={{ borderRadius: 20, padding: 20, textAlign: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#6366f1", background: "rgba(99, 102, 241, 0.12)", padding: "4px 10px", borderRadius: 10 }}>
+              Step {6 - step} of 5
+            </span>
+            <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", fontWeight: 600 }}>
+              {(inputs[step] || []).length} / {currentMeta.req} Items
+            </span>
+          </div>
+
+          <h3 style={{ fontSize: 18, color: "#5a4a42", margin: "8px 0" }}>{currentMeta.title}</h3>
+          <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.7)", lineHeight: 1.5, marginBottom: 16 }}>
+            {currentMeta.prompt}
+          </p>
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            <input
+              placeholder="Type an item (e.g. lamp, desk, breeze)..."
+              value={tempInput}
+              onChange={e => setTempInput(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && addItem()}
+              style={{
+                flex: 1,
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "1px solid rgba(255, 195, 160, 0.3)",
+                background: "rgba(255, 255, 255, 0.8)",
+                fontSize: 13,
+                outline: "none"
+              }}
+            />
+            <button
+              onClick={addItem}
+              style={{
+                padding: "10px 16px",
+                borderRadius: 12,
+                background: "linear-gradient(135deg, #ffc3a0, #ffafbd)",
+                border: "none",
+                color: "#fff",
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              + Add
+            </button>
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 20, minHeight: 40 }}>
+            {(inputs[step] || []).map((item, idx) => (
+              <span
+                key={idx}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 14,
+                  background: "rgba(168, 230, 207, 0.3)",
+                  color: "#2d6a4f",
+                  fontSize: 12,
+                  fontWeight: 600
+                }}
+              >
+                ✓ {item}
+              </span>
+            ))}
+          </div>
+
+          <button
+            onClick={handleNextStep}
+            disabled={(inputs[step] || []).length < 1}
+            style={{
+              width: "100%",
+              padding: "14px 0",
+              borderRadius: 16,
+              background: (inputs[step] || []).length >= 1 ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(139, 126, 116, 0.2)",
+              border: "none",
+              color: "#fff",
+              fontSize: 14,
+              fontWeight: 700,
+              cursor: (inputs[step] || []).length >= 1 ? "pointer" : "not-allowed",
+              boxShadow: (inputs[step] || []).length >= 1 ? "0 6px 20px rgba(99, 102, 241, 0.3)" : "none"
+            }}
+          >
+            {step === 1 ? "✨ Finish Grounding Reset" : `Continue to Step ${6 - step + 1} ➔`}
+          </button>
+        </div>
+      ) : (
+        <div className="glass" style={{ borderRadius: 20, padding: 24, textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 10 }}>🧘✨</div>
+          <h3 style={{ fontSize: 20, color: "#2d6a4f", margin: 0, fontFamily: "'Crimson Text', serif", fontStyle: "italic" }}>
+            You Are Grounded & Present
+          </h3>
+          <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.7)", marginTop: 8, lineHeight: 1.6 }}>
+            Great job! You brought your focus back to the physical present. This exercise lowers cortisol and resets your nervous system.
+          </p>
+
+          <button
+            onClick={() => setStep(5)}
+            style={{
+              marginTop: 16,
+              padding: "12px 28px",
+              borderRadius: 14,
+              background: "linear-gradient(135deg, #a8e6cf, #dcedc1)",
+              border: "none",
+              color: "#fff",
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: "pointer"
+            }}
+          >
+            🔄 Repeat Exercise
+          </button>
         </div>
       )}
     </div>
