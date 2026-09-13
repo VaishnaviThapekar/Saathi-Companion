@@ -3,8 +3,14 @@ import HomeScreen from "./components/screens/HomeScreen";
 import LoginScreen from "./components/screens/LoginScreen";
 import { isAuthenticated, logout, getPinLockoutStatus, recordFailedPinAttempt, clearPinLockout } from "./utils/auth";
 import { detectActionableSuggestions, CRISIS_HELPLINES } from "./utils/ai";
-import { getStorageQuota } from "./utils/storage";
-import { playChimeSound } from "./services/soundService";
+import { getStorageQuota, exportDataAsMarkdown, exportDataAsPDF } from "./utils/storage";
+import {
+  playChimeSound, playTaskComplete, playTabSwitch,
+  isSoundEnabled, setSoundEnabled, startAmbientSound, stopAmbientSound, setAmbientVolume, getCurrentAmbientType
+} from "./services/soundService";
+import {
+  getNotificationPermission, checkScheduledReminders
+} from "./services/notificationService";
 import { compressImage } from "./utils/helpers";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -232,6 +238,15 @@ export default function App() {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [activeTaskAlarm, setActiveTaskAlarm] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("saathi_theme") || "pastel");
+
+  // 5 Feature Upgrade States
+  const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState(null);
+  const [soundOn, setSoundOn] = useState(isSoundEnabled());
+  const [ambientType, setAmbientType] = useState(getCurrentAmbientType() || "none");
+  const [ambientVol, setAmbientVol] = useState(0.3);
+  const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+
   const toastTimerRef = useRef(null);
   const alarmIntervalRef = useRef(null);
   const alarmTimeoutRef = useRef(null);
@@ -240,6 +255,77 @@ export default function App() {
     document.body.setAttribute("data-theme", theme);
     localStorage.setItem("saathi_theme", theme);
   }, [theme]);
+
+  // Online / Offline & PWA Install Listener
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    const handleInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("beforeinstallprompt", handleInstallPrompt);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
+    };
+  }, []);
+
+  useEffect(() => {
+    checkScheduledReminders({ tasks, lastMoodLogDate: lastCheckInDate });
+    const iv = setInterval(() => {
+      checkScheduledReminders({ tasks, lastMoodLogDate: lastCheckInDate });
+    }, 60000);
+    return () => clearInterval(iv);
+  }, [tasks, lastCheckInDate]);
+
+  const handleToggleSound = (enabled) => {
+    setSoundEnabled(enabled);
+    setSoundOn(enabled);
+    if (enabled) playChimeSound(528, 0.4);
+  };
+
+  const handleAmbientChange = (type) => {
+    if (type === "none") {
+      stopAmbientSound();
+      setAmbientType("none");
+    } else {
+      startAmbientSound(type, ambientVol);
+      setAmbientType(type);
+    }
+  };
+
+  const handleAmbientVolumeChange = (vol) => {
+    setAmbientVol(vol);
+    setAmbientVolume(vol);
+  };
+
+  const handleInstallPWA = async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        showToast("Saathi app installed successfully! 📱");
+      }
+      setDeferredInstallPrompt(null);
+    } else {
+      alert("To install Saathi on your device: Open browser menu (⋮ or 📤) and tap 'Add to Home Screen' or 'Install App'.");
+    }
+  };
+
+  const handleExportMarkdown = () => {
+    exportDataAsMarkdown({ userName, moodLog, memories: meaningfulMoments, dailyNotes, tasks, habits });
+    showToast("Downloaded Markdown Journal Export! 📄");
+  };
+
+  const handleExportPDF = () => {
+    exportDataAsPDF({ userName, moodLog, memories: meaningfulMoments, dailyNotes, tasks, habits });
+  };
 
   // ── Boot ──
   useEffect(() => {
@@ -543,7 +629,17 @@ export default function App() {
 
   // Authentication check first, then name setup, then main app
 
-  const shared = { userName, theme, setTheme, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos, meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate, setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog, setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection, setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon, setTab, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, showToast, onLogout: () => { logout(); setAuthenticated(false); } };
+  const shared = {
+    userName, theme, setTheme, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos,
+    meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate,
+    setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog,
+    setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection,
+    setWeeklyReflection, emotionalPatterns, setEmotionalPatterns, autoSuggestions, setAutoSuggestions, Icon,
+    setTab: (t) => { playTabSwitch(); setTab(t); }, lockEnabled, setLockEnabled, lockPin, setLockPin, setIsLocked, resetAccount, lastSavedAt, showToast,
+    onLogout: () => { logout(); setAuthenticated(false); },
+    isOnline, soundOn, handleToggleSound, ambientType, handleAmbientChange, ambientVol, handleAmbientVolumeChange,
+    deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF
+  };
 
   const screens = {
     home: <HomeScreen {...shared} />,
@@ -567,6 +663,63 @@ export default function App() {
         <div className="app-shell fade-in">
           <div className="ambient-orb-1" />
           <div className="ambient-orb-2" />
+
+          {/* OFFLINE MODE BANNER */}
+          {!isOnline && (
+            <div style={{
+              background: "linear-gradient(135deg, #ff9a76, #ff6b81)",
+              color: "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "8px 16px",
+              textAlign: "center",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              zIndex: 1000
+            }}>
+              <span>📡 Offline Mode Active — All entries & notes are saved locally in your browser.</span>
+            </div>
+          )}
+
+          {/* ACTIVE AMBIENT SOUND PLAYER BAR */}
+          {ambientType !== "none" && (
+            <div style={{
+              position: "fixed",
+              top: isOnline ? 12 : 44,
+              left: "50%",
+              transform: "translateX(-50%)",
+              zIndex: 999,
+              background: "rgba(15, 23, 42, 0.88)",
+              backdropFilter: "blur(12px)",
+              color: "#fff",
+              padding: "6px 14px",
+              borderRadius: 20,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              fontSize: 11,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.3)"
+            }}>
+              <span>🎧 Ambient: <strong>{ambientType.toUpperCase()}</strong></span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={ambientVol}
+                onChange={e => handleAmbientVolumeChange(parseFloat(e.target.value))}
+                style={{ width: 60, accentColor: "#a8e6cf" }}
+              />
+              <button
+                onClick={() => handleAmbientChange("none")}
+                style={{ background: "none", border: "none", color: "#ffafbd", cursor: "pointer", fontSize: 12, fontWeight: 700 }}
+              >
+                ✕ Stop
+              </button>
+            </div>
+          )}
           {activeTaskAlarm && (
             <div style={{ position: "fixed", top: 16, left: "50%", transform: "translateX(-50%)", width: "90%", maxWidth: 400, background: "linear-gradient(135deg, rgba(255, 175, 189, 0.95), rgba(255, 195, 160, 0.95))", border: "2px solid #ffafbd", borderRadius: 16, padding: 14, boxShadow: "0 12px 32px rgba(255, 154, 118, 0.3)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -815,6 +968,18 @@ function SettingsScreen({
   resetAccount,
   onLogout,
   showToast,
+  soundOn,
+  handleToggleSound,
+  ambientType,
+  handleAmbientChange,
+  ambientVol,
+  handleAmbientVolumeChange,
+  deferredInstallPrompt,
+  handleInstallPWA,
+  notifPermission,
+  setNotifPermission,
+  handleExportMarkdown,
+  handleExportPDF
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -1010,6 +1175,72 @@ function SettingsScreen({
 
       <div style={{ padding: "0 24px" }}>
 
+      {/* PWA INSTALLATION CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16, borderLeft: "4px solid #6366f1" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, margin: 0 }}>📱 Install Saathi App</p>
+          <span style={{ fontSize: 11, background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", padding: "2px 8px", borderRadius: 8, fontWeight: 700 }}>
+            {deferredInstallPrompt ? "Ready to Install" : "PWA Ready"}
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.65)", lineHeight: 1.5, marginBottom: 10 }}>
+          Install Saathi on your mobile or desktop home screen for full offline support and instant launcher access.
+        </p>
+        <button
+          onClick={handleInstallPWA}
+          style={{ width: "100%", padding: "11px 0", borderRadius: 12, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 12px rgba(99, 102, 241, 0.25)" }}
+        >
+          {deferredInstallPrompt ? "⚡ Install Saathi App Now" : "📲 Add to Home Screen"}
+        </button>
+      </div>
+
+      {/* AUDIO SOUND FX & AMBIENT SOUNDSCAPES CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+          <div>
+            <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, margin: 0 }}>🎵 UI Sound FX & Ambient Focus</p>
+            <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)" }}>Tactile chimes & background soundscapes</p>
+          </div>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#5a4a42", fontWeight: 600, cursor: "pointer" }}>
+            <input type="checkbox" checked={soundOn} onChange={e => handleToggleSound(e.target.checked)} />
+            Chimes On
+          </label>
+        </div>
+
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid rgba(139, 126, 116, 0.15)" }}>
+          <label style={{ fontSize: 12, color: "#5a4a42", fontWeight: 600, display: "block", marginBottom: 6 }}>
+            🎧 Ambient Focus Generator:
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 10 }}>
+            {[
+              { id: "none", label: "🚫 None" },
+              { id: "rain", label: "🌧️ Rain" },
+              { id: "ocean", label: "🌊 Ocean Waves" },
+              { id: "pink", label: "🎧 Pink Noise" },
+              { id: "zen", label: "🧘 Zen 432Hz" }
+            ].map(snd => (
+              <button
+                key={snd.id}
+                onClick={() => handleAmbientChange(snd.id)}
+                style={{
+                  padding: "8px 10px",
+                  borderRadius: 10,
+                  border: ambientType === snd.id ? "2px solid #6366f1" : "1px solid rgba(139, 126, 116, 0.2)",
+                  background: ambientType === snd.id ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.6)",
+                  color: "#5a4a42",
+                  fontSize: 12,
+                  fontWeight: ambientType === snd.id ? 700 : 500,
+                  cursor: "pointer",
+                  gridColumn: snd.id === "zen" ? "1 / -1" : "auto"
+                }}
+              >
+                {snd.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       {/* COLOR THEME SELECTION CARD */}
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
         <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>Color Theme & Appearance 🎨</p>
@@ -1201,8 +1432,10 @@ function SettingsScreen({
             </label>
           ))}
         </div>
-        <button onClick={exportJson} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export JSON</button>
-        <button onClick={exportCsv} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export CSVs</button>
+        <button onClick={exportJson} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export JSON Backup</button>
+        <button onClick={exportCsv} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export CSV Spreadsheets</button>
+        <button onClick={handleExportMarkdown} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #c3aed6, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📄 Export Journal as Markdown (.MD)</button>
+        <button onClick={handleExportPDF} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #a8e6cf)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🖨️ Export / Print Formatted PDF Report</button>
         <label style={{
           display: "block",
           width: "100%",
@@ -1422,7 +1655,13 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
           const prio = pMeta[t.priority || "medium"];
           return (
             <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : "#ffc3a0"}` }}>
-              <button onClick={() => setTasks(p => p.map(x => x.id === t.id ? { ...x, done: !x.done } : x))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
+              <button onClick={() => setTasks(p => p.map(x => {
+                if (x.id === t.id) {
+                  if (!x.done) playTaskComplete();
+                  return { ...x, done: !x.done };
+                }
+                return x;
+              }))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
                 {t.done && <Icon name="check" size={12} color="#fff" sw={3} />}
               </button>
               <div style={{ flex: 1, minWidth: 0 }}>

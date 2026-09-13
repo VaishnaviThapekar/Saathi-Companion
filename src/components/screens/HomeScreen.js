@@ -1,6 +1,5 @@
 import { useState } from "react";
-
-
+import { playMoodLog } from "../../services/soundService";
 
 // Helper functions - these should match what's in your App.js
 const todayKey = () => {
@@ -82,6 +81,7 @@ export default function HomeScreen({
 
     const submitCheckIn = () => {
         if (!mood) return;
+        playMoodLog();
         const entry = { id: now().toISOString(), date: today, mood, struggles, timestamp: now().toISOString() };
         setMoodLog(p => {
             const list = Array.isArray(p) ? p : [];

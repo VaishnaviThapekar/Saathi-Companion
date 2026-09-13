@@ -30,6 +30,13 @@ export const COMPANION_PERSONAS = {
     role: "Inspiration & Reflection",
     avatar: "✨",
     greeting: "Let's explore your ideas and capture your best thoughts!"
+  },
+  mentor: {
+    id: "mentor",
+    name: "Professional Mentor",
+    role: "Structured & Direct Advice",
+    avatar: "🎓",
+    greeting: "Welcome! Let's organize your focus, audit priorities, and execute efficiently."
   }
 };
 
@@ -109,6 +116,12 @@ export const getLocalChatReply = ({ userName, meaningfulMoments = [], message, p
     }
   } else if (personaId === "creative") {
     reply = `Love that perspective, ${name}! What if we wrote this down as a daily note or a milestone memory?`;
+  } else if (personaId === "mentor") {
+    if (/(goal|task|plan|project|work)/.test(msg)) {
+      reply = `Understood, ${name}. Let's break this objective down into 3 concrete milestones and evaluate deadlines.`;
+    } else {
+      reply = `Good focus, ${name}. What is the primary bottleneck we need to solve right now?`;
+    }
   } else {
     // Default Empathic Persona
     if (/^(hi|hello|hey)\b/.test(msg)) {
