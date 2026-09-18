@@ -680,7 +680,7 @@ export default function App() {
   return (
     <>
       {!authenticated ? (
-        <LoginScreen onLoginSuccess={() => setAuthenticated(true)} />
+        <LoginScreen onLoginSuccess={() => setAuthenticated(true)} Icon={Icon} />
       ) : !userName ? (
         <NameSetup onSet={(n) => { setUserName(n); setLastSavedAt(now().toISOString()); }} />
       ) : (

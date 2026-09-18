@@ -50,7 +50,7 @@ export default function LoginScreen({ onLoginSuccess, Icon }) {
             <div style={styles.header}>
                 <div style={styles.logoSection}>
                     <div style={styles.iconWrapper}>
-                        <Icon name="heart" size={48} color="#ff9a76" />
+                        {Icon ? <Icon name="heart" size={48} color="#ff9a76" /> : <span style={{ fontSize: 48 }}>❤️</span>}
                     </div>
                     <h1 style={styles.title}>Your Companion</h1>
                     <p style={styles.subtitle}>Your Personal Life Assistant</p>

@@ -177,7 +177,7 @@ export default function HomeScreen({
                                 border: "3px solid rgba(255, 255, 255, 0.7)",
                                 animation: "glowPulse 2.5s ease-in-out infinite"
                             }}>
-                                <Icon name="heart" size={48} color="#fff" sw={2} />
+                                {Icon ? <Icon name="heart" size={48} color="#fff" sw={2} /> : <span style={{ fontSize: 48 }}>❤️</span>}
                             </div>
                             <span style={{
                                 fontSize: 11,
