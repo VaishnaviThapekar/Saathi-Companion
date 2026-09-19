@@ -259,10 +259,22 @@ export default function App() {
   const [ambientType, setAmbientType] = useState(getCurrentAmbientType() || "none");
   const [ambientVol, setAmbientVol] = useState(0.3);
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   const toastTimerRef = useRef(null);
   const alarmIntervalRef = useRef(null);
   const alarmTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setShowSearchModal(s => !s);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     document.body.setAttribute("data-theme", theme);
@@ -687,6 +699,48 @@ export default function App() {
         <div className="app-shell fade-in">
           <div className="ambient-orb-1" />
           <div className="ambient-orb-2" />
+
+          {/* FLOATING UNIVERSAL SEARCH LAUNCHER BUTTON */}
+          <button
+            onClick={() => setShowSearchModal(true)}
+            style={{
+              position: "fixed",
+              top: isOnline ? 12 : 44,
+              right: "calc(50% - 200px)",
+              zIndex: 998,
+              background: "rgba(255, 255, 255, 0.88)",
+              backdropFilter: "blur(12px)",
+              border: "1px solid rgba(255, 195, 160, 0.4)",
+              borderRadius: 20,
+              padding: "6px 12px",
+              color: "#5a4a42",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              boxShadow: "0 6px 16px rgba(0,0,0,0.08)"
+            }}
+            title="Search all tasks, habits, notes & memories (Ctrl+K)"
+          >
+            <Icon name="spark" size={14} color="#ff9a76" />
+            <span>Search</span>
+            <span style={{ fontSize: 10, background: "rgba(139, 126, 116, 0.12)", padding: "2px 5px", borderRadius: 6, color: "rgba(139, 126, 116, 0.7)" }}>⌘K</span>
+          </button>
+
+          {showSearchModal && (
+            <SearchModal
+              onClose={() => setShowSearchModal(false)}
+              setTab={setTab}
+              tasks={tasks}
+              habits={habits}
+              notes={notes}
+              photos={photos}
+              meaningfulMoments={meaningfulMoments}
+              dailyNotes={dailyNotes}
+            />
+          )}
 
           {/* OFFLINE MODE BANNER */}
           {!isOnline && (
@@ -2581,6 +2635,72 @@ function MoodTimelinePanel({ moodLog }) {
   );
 }
 
+function MonthlyHeatmapPanel({ moodLog = [], energyLog = {} }) {
+  const moodScores = {
+    amazing: 5,
+    good: 4,
+    okay: 3,
+    struggling: 2,
+    overwhelmed: 1
+  };
+
+  const days30 = Array.from({ length: 30 }, (_, i) => {
+    const d = now();
+    d.setDate(d.getDate() - (29 - i));
+    const key = d.toISOString().slice(0, 10);
+    const dayEntry = moodLog ? moodLog.filter(m => m.date === key).slice(-1)[0] : null;
+    const energyEntries = energyLog[key] || [];
+    const latestEnergy = energyEntries[energyEntries.length - 1]?.level || 0;
+    return { key, dayNum: d.getDate(), entry: dayEntry, energy: latestEnergy };
+  });
+
+  const moodColors = {
+    5: "#a8e6cf",
+    4: "#dcedc1",
+    3: "#ffd3b6",
+    2: "#ffafbd",
+    1: "#ff9a76",
+    0: "rgba(139, 126, 116, 0.12)"
+  };
+
+  return (
+    <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+        <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", margin: 0 }}>🗓️ 30-Day Emotional Heatmap</p>
+        <span style={{ fontSize: 10, color: "rgba(139,126,116,0.6)" }}>Past 30 days</span>
+      </div>
+
+      <div className="heatmap-grid">
+        {days30.map(d => {
+          const score = d.entry ? (moodScores[d.entry.mood] || 3) : 0;
+          const color = moodColors[score];
+          return (
+            <div
+              key={d.key}
+              className="heatmap-cell"
+              style={{ background: color, color: score > 0 ? "#5a4a42" : "rgba(139,126,116,0.4)" }}
+              title={`${d.key}: ${d.entry ? d.entry.mood : "No check-in"}${d.energy ? ` · Energy: ${d.energy}/5` : ""}`}
+            >
+              <span>{d.dayNum}</span>
+              {d.entry && <span style={{ fontSize: 8 }}>{d.entry.mood === "amazing" ? "😄" : d.entry.mood === "good" ? "😊" : d.entry.mood === "okay" ? "😐" : d.entry.mood === "struggling" ? "😔" : "😰"}</span>}
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, fontSize: 10, color: "rgba(139,126,116,0.6)" }}>
+        <span>Less active</span>
+        <div style={{ display: "flex", gap: 3 }}>
+          {[0, 1, 2, 3, 4, 5].map(s => (
+            <div key={s} style={{ width: 12, height: 12, borderRadius: 3, background: moodColors[s] }} />
+          ))}
+        </div>
+        <span>More positive</span>
+      </div>
+    </div>
+  );
+}
+
 function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude }) {
   const totalCheckIns = moodLog ? moodLog.length : 0;
   const totalGratitudes = gratitude ? Object.keys(gratitude).length : 0;
@@ -2609,6 +2729,9 @@ function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude 
       <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>
         Your 14-day emotional health & life balance overview.
       </p>
+
+      {/* MONTHLY 30-DAY EMOTIONAL HEATMAP */}
+      <MonthlyHeatmapPanel moodLog={moodLog} energyLog={energyLog} />
 
       {/* LIFE DOMAIN BALANCE CARD */}
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14 }}>
@@ -4024,6 +4147,126 @@ function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
           <strong> {Object.keys(dailyNotes).filter(k => { const d = new Date(k); return d.getMonth() === currentMonth.getMonth() && d.getFullYear() === currentMonth.getFullYear(); }).length}</strong> this month
         </p>
       </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// UNIVERSAL SEARCH MODAL
+// ═══════════════════════════════════════════════════════════════════════
+function SearchModal({ onClose, setTab, tasks = [], habits = [], notes = [], photos = [], meaningfulMoments = [], dailyNotes = {} }) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const q = query.trim().toLowerCase();
+
+  const matchingTasks = q ? tasks.filter(t => (t.title || "").toLowerCase().includes(q)) : [];
+  const matchingHabits = q ? habits.filter(h => (h.title || "").toLowerCase().includes(q)) : [];
+  const matchingNotes = q ? notes.filter(n => (n.title || "").toLowerCase().includes(q) || (n.body || "").toLowerCase().includes(q)) : [];
+  const matchingMoments = q ? meaningfulMoments.filter(m => (m.text || "").toLowerCase().includes(q) || (m.emotion || "").toLowerCase().includes(q)) : [];
+  const matchingPhotos = q ? photos.filter(p => (p.caption || "").toLowerCase().includes(q) || (p.emotion || "").toLowerCase().includes(q)) : [];
+  const matchingDailyNotes = q ? Object.entries(dailyNotes).filter(([date, text]) => date.includes(q) || (text || "").toLowerCase().includes(q)) : [];
+
+  const totalResults = matchingTasks.length + matchingHabits.length + matchingNotes.length + matchingMoments.length + matchingPhotos.length + matchingDailyNotes.length;
+
+  return (
+    <div className="search-modal-backdrop" onClick={onClose}>
+      <div className="search-modal-card" onClick={e => e.stopPropagation()}>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255, 195, 160, 0.25)", display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>🔍</span>
+          <input
+            ref={inputRef}
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search tasks, habits, notes, memories... (Ctrl+K)"
+            style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 15, color: "#5a4a42", fontWeight: 500 }}
+          />
+          {query && (
+            <button onClick={() => setQuery("")} style={{ background: "none", border: "none", color: "rgba(139,126,116,0.5)", cursor: "pointer", fontSize: 14 }}>✕</button>
+          )}
+          <button onClick={onClose} style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(139, 126, 116, 0.1)", border: "none", color: "rgba(139, 126, 116, 0.7)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Esc</button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 20px", display: "flex", flexDirection: "column", gap: 12 }}>
+          {!q ? (
+            <div style={{ textAlign: "center", padding: "30px 0", color: "rgba(139, 126, 116, 0.5)" }}>
+              <p style={{ fontSize: 13 }}>Type anything to search across all your companion data.</p>
+              <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 12, flexWrap: "wrap" }}>
+                {["Work", "Meditation", "Gratitude", "Water", "Mind"].map(tag => (
+                  <button key={tag} onClick={() => setQuery(tag)} style={{ padding: "4px 10px", borderRadius: 12, background: "rgba(255, 195, 160, 0.2)", border: "none", color: "#5a4a42", fontSize: 11, cursor: "pointer" }}>{tag}</button>
+                ))}
+              </div>
+            </div>
+          ) : totalResults === 0 ? (
+            <p style={{ textAlign: "center", padding: "30px 0", color: "rgba(139, 126, 116, 0.5)", fontSize: 13 }}>No matching results found for "{query}".</p>
+          ) : (
+            <>
+              {matchingTasks.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(139, 126, 116, 0.6)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Tasks ({matchingTasks.length})</p>
+                  {matchingTasks.map(t => (
+                    <div key={t.id} onClick={() => { setTab("tasks"); onClose(); }} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(255, 195, 160, 0.2)", cursor: "pointer", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, color: "#5a4a42", textDecoration: t.done ? "line-through" : "none" }}>{t.title}</span>
+                      <span style={{ fontSize: 10, color: "#ff9a76", fontWeight: 700 }}>Jump to Tasks →</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {matchingHabits.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(139, 126, 116, 0.6)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Habits ({matchingHabits.length})</p>
+                  {matchingHabits.map(h => (
+                    <div key={h.id} onClick={() => { setTab("habits"); onClose(); }} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(168, 230, 207, 0.3)", cursor: "pointer", marginBottom: 6, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, color: "#5a4a42" }}>{h.title}</span>
+                      <span style={{ fontSize: 10, color: "#2d6a4f", fontWeight: 700 }}>Jump to Habits →</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {matchingNotes.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(139, 126, 116, 0.6)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Notes ({matchingNotes.length})</p>
+                  {matchingNotes.map(n => (
+                    <div key={n.id} onClick={() => { setTab("memories"); onClose(); }} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(255, 175, 189, 0.3)", cursor: "pointer", marginBottom: 6 }}>
+                      <p style={{ fontSize: 13, fontWeight: 600, color: "#5a4a42" }}>{n.title}</p>
+                      {n.body && <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{n.body}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {matchingMoments.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(139, 126, 116, 0.6)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Moments ({matchingMoments.length})</p>
+                  {matchingMoments.map(m => (
+                    <div key={m.id} onClick={() => { setTab("heart"); onClose(); }} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(255, 211, 182, 0.3)", cursor: "pointer", marginBottom: 6 }}>
+                      <p style={{ fontSize: 12, color: "#5a4a42" }}>{m.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {matchingDailyNotes.length > 0 && (
+                <div>
+                  <p style={{ fontSize: 11, fontWeight: 700, color: "rgba(139, 126, 116, 0.6)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>Calendar Journal ({matchingDailyNotes.length})</p>
+                  {matchingDailyNotes.map(([date, text]) => (
+                    <div key={date} onClick={() => { setTab("notes"); onClose(); }} style={{ padding: "8px 12px", borderRadius: 10, background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(180, 212, 255, 0.3)", cursor: "pointer", marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, color: "#6366f1", fontWeight: 700 }}>{date}: </span>
+                      <span style={{ fontSize: 12, color: "#5a4a42" }}>{text}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
