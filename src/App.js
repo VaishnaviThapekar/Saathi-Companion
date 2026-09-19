@@ -260,6 +260,21 @@ export default function App() {
   const [ambientVol, setAmbientVol] = useState(0.3);
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [confetti, setConfetti] = useState([]);
+
+  const triggerConfetti = () => {
+    const colors = ["#ffc3a0", "#ffafbd", "#a8e6cf", "#dcedc1", "#ffd3b6", "#c3aed6", "#ff9a76"];
+    const particles = Array.from({ length: 24 }, (_, i) => ({
+      id: Date.now() + i,
+      left: Math.random() * 80 + 10,
+      top: Math.random() * 30 + 20,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      size: Math.random() * 8 + 6,
+      rotate: Math.random() * 360
+    }));
+    setConfetti(particles);
+    setTimeout(() => setConfetti([]), 1300);
+  };
 
   const toastTimerRef = useRef(null);
   const alarmIntervalRef = useRef(null);
@@ -674,7 +689,8 @@ export default function App() {
     onLogout: () => { logout(); setAuthenticated(false); },
     fontScale, setFontScale, uiDensity, setUiDensity,
     isOnline, soundOn, handleToggleSound, ambientType, handleAmbientChange, ambientVol, handleAmbientVolumeChange,
-    deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF
+    deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF,
+    triggerConfetti
   };
 
   const screens = {
@@ -699,6 +715,22 @@ export default function App() {
         <div className="app-shell fade-in">
           <div className="ambient-orb-1" />
           <div className="ambient-orb-2" />
+
+          {/* CELEBRATION CONFETTI PARTICLES */}
+          {confetti.map(p => (
+            <div
+              key={p.id}
+              className="confetti-particle"
+              style={{
+                left: `${p.left}%`,
+                top: `${p.top}%`,
+                width: p.size,
+                height: p.size,
+                background: p.color,
+                transform: `rotate(${p.rotate}deg)`
+              }}
+            />
+          ))}
 
           {/* FLOATING UNIVERSAL SEARCH LAUNCHER BUTTON */}
           <button
@@ -1649,7 +1681,7 @@ function SettingsScreen({
 // ═══════════════════════════════════════════════════════════════════════
 // TASKS SCREEN
 // ═══════════════════════════════════════════════════════════════════════
-function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
+function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti }) {
   const [showForm, setShowForm] = useState(false);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterDomain, setFilterDomain] = useState("all");
@@ -1848,7 +1880,10 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast }) {
             <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : dom.color}` }}>
               <button onClick={() => setTasks(p => p.map(x => {
                 if (x.id === t.id) {
-                  if (!x.done) playTaskComplete();
+                  if (!x.done) {
+                    playTaskComplete();
+                    if (triggerConfetti) triggerConfetti();
+                  }
                   return { ...x, done: !x.done };
                 }
                 return x;
@@ -1979,7 +2014,7 @@ function TaskForm({ onAdd, onTaskAdded }) {
 }
 
 // HABITS SCREEN - Fuller habit tracker with streaks
-function HabitsScreen({ habits, setHabits, showToast }) {
+function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
   const [showForm, setShowForm] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [reminderQuery, setReminderQuery] = useState("");
@@ -1994,9 +2029,12 @@ function HabitsScreen({ habits, setHabits, showToast }) {
   });
 
   const toggleCompletion = (habit) => {
+    const hasToday = habit.completions.includes(today);
+    if (!hasToday && triggerConfetti) {
+      triggerConfetti();
+    }
     setHabits(p => p.map(h => {
       if (h.id !== habit.id) return h;
-      const hasToday = h.completions.includes(today);
       const next = hasToday ? h.completions.filter(d => d !== today) : [...h.completions, today];
       return { ...h, completions: next };
     }));
