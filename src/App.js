@@ -793,6 +793,7 @@ export default function App() {
           {/* FLOATING UNIVERSAL SEARCH LAUNCHER BUTTON */}
           <button
             onClick={() => setShowSearchModal(true)}
+            className="shimmer-btn click-ripple"
             style={{
               position: "fixed",
               top: isOnline ? 12 : 44,
@@ -4363,7 +4364,7 @@ function SearchModal({ onClose, setTab, tasks = [], habits = [], notes = [], pho
 
   return (
     <div className="search-modal-backdrop" onClick={onClose}>
-      <div className="search-modal-card" onClick={e => e.stopPropagation()}>
+      <div className="search-modal-card spring-bounce-in" onClick={e => e.stopPropagation()}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid rgba(255, 195, 160, 0.25)", display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 18 }}>🔍</span>
           <input
