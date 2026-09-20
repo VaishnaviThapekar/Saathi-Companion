@@ -771,6 +771,8 @@ export default function App() {
         <div className="app-shell fade-in">
           <div className="ambient-orb-1" />
           <div className="ambient-orb-2" />
+          <div className="ambient-glow-orb-1" />
+          <div className="ambient-glow-orb-2" />
 
           {/* CELEBRATION CONFETTI PARTICLES */}
           {confetti.map(p => (
@@ -909,7 +911,7 @@ export default function App() {
               )}
             </div>
           )}
-          <div key={tab} className="page-spring" style={{ paddingBottom: 90, position: "relative", zIndex: 1 }}>{screens[tab]}</div>
+          <div key={tab} className="page-spring screen-tab-content" style={{ paddingBottom: 90, position: "relative", zIndex: 1 }}>{screens[tab]}</div>
           <BottomNav tab={tab} setTab={setTab} onLogout={() => { logout(); setAuthenticated(false); }} />
         </div>
       )}
