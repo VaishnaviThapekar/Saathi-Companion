@@ -204,7 +204,46 @@ export const startAmbientSound = (type = 'rain', volume = 0.3) => {
   }
 };
 
+let activeCustomAudio = null;
+
+export const startCustomAudio = (dataUrl, volume = 0.5, onEnded) => {
+  stopAmbientSound();
+  stopCustomAudio();
+  try {
+    activeCustomAudio = new Audio(dataUrl);
+    activeCustomAudio.volume = Math.max(0, Math.min(1, volume));
+    activeCustomAudio.loop = true;
+    if (onEnded) {
+      activeCustomAudio.onended = onEnded;
+    }
+    activeCustomAudio.play().catch(e => console.warn("Custom audio autoplay blocked:", e));
+    currentAmbientType = "custom";
+  } catch (e) {
+    console.warn("Failed to play custom audio track:", e);
+  }
+};
+
+export const stopCustomAudio = () => {
+  if (activeCustomAudio) {
+    try {
+      activeCustomAudio.pause();
+      activeCustomAudio.currentTime = 0;
+    } catch (e) {}
+    activeCustomAudio = null;
+  }
+  if (currentAmbientType === "custom") {
+    currentAmbientType = null;
+  }
+};
+
+export const setCustomAudioVolume = (vol) => {
+  if (activeCustomAudio) {
+    activeCustomAudio.volume = Math.max(0, Math.min(1, vol));
+  }
+};
+
 export const stopAmbientSound = () => {
+  stopCustomAudio();
   if (activeAmbientNodes) {
     activeAmbientNodes.forEach(node => {
       try {
@@ -222,9 +261,11 @@ export const stopAmbientSound = () => {
 };
 
 export const setAmbientVolume = (vol) => {
+  setCustomAudioVolume(vol);
   if (ambientMasterGain && audioCtx) {
     ambientMasterGain.gain.setValueAtTime(Math.max(0, Math.min(1, vol)), audioCtx.currentTime);
   }
 };
 
 export const getCurrentAmbientType = () => currentAmbientType;
+

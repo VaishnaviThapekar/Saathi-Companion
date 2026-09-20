@@ -6,12 +6,14 @@ import { detectActionableSuggestions, CRISIS_HELPLINES } from "./utils/ai";
 import { getStorageQuota, exportDataAsMarkdown, exportDataAsPDF } from "./utils/storage";
 import {
   playChimeSound, playTaskComplete, playTabSwitch,
-  isSoundEnabled, setSoundEnabled, startAmbientSound, stopAmbientSound, setAmbientVolume, getCurrentAmbientType
+  isSoundEnabled, setSoundEnabled, startAmbientSound, stopAmbientSound, setAmbientVolume, getCurrentAmbientType,
+  startCustomAudio, stopCustomAudio
 } from "./services/soundService";
 import {
   getNotificationPermission, checkScheduledReminders
 } from "./services/notificationService";
 import { compressImage } from "./utils/helpers";
+import { saveAudioTrack, getAllAudioTracks, deleteAudioTrack } from "./utils/audioStorage";
 
 // ═══════════════════════════════════════════════════════════════════════
 // STORAGE MOCK - Makes name & data persist permanently
@@ -340,11 +342,24 @@ export default function App() {
     if (enabled) playChimeSound(528, 0.4);
   };
 
+  const [customAudioTracks, setCustomAudioTracks] = useState([]);
+  const [playingCustomTrackId, setPlayingCustomTrackId] = useState(null);
+
+  useEffect(() => {
+    getAllAudioTracks().then(tracks => {
+      setCustomAudioTracks(tracks || []);
+    });
+  }, []);
+
   const handleAmbientChange = (type) => {
     if (type === "none") {
       stopAmbientSound();
+      stopCustomAudio();
+      setPlayingCustomTrackId(null);
       setAmbientType("none");
     } else {
+      stopCustomAudio();
+      setPlayingCustomTrackId(null);
       startAmbientSound(type, ambientVol);
       setAmbientType(type);
     }
@@ -353,6 +368,46 @@ export default function App() {
   const handleAmbientVolumeChange = (vol) => {
     setAmbientVol(vol);
     setAmbientVolume(vol);
+  };
+
+  const handleUploadCustomTrack = async (file) => {
+    if (!file) return;
+    try {
+      const track = await saveAudioTrack(file);
+      setCustomAudioTracks(prev => [track, ...prev]);
+      if (showToast) showToast(`Uploaded "${track.name}" 🎵`);
+    } catch (e) {
+      if (showToast) showToast("Failed to save custom track");
+    }
+  };
+
+  const handleDeleteCustomTrack = async (id) => {
+    try {
+      if (playingCustomTrackId === id) {
+        stopCustomAudio();
+        setPlayingCustomTrackId(null);
+        setAmbientType("none");
+      }
+      await deleteAudioTrack(id);
+      setCustomAudioTracks(prev => prev.filter(t => t.id !== id));
+      if (showToast) showToast("Custom track deleted");
+    } catch (e) {}
+  };
+
+  const handleTogglePlayCustomTrack = (track) => {
+    if (playingCustomTrackId === track.id) {
+      stopCustomAudio();
+      setPlayingCustomTrackId(null);
+      setAmbientType("none");
+    } else {
+      stopAmbientSound();
+      startCustomAudio(track.data, ambientVol, () => {
+        setPlayingCustomTrackId(null);
+        setAmbientType("none");
+      });
+      setPlayingCustomTrackId(track.id);
+      setAmbientType("custom");
+    }
   };
 
   const handleInstallPWA = async () => {
@@ -690,7 +745,8 @@ export default function App() {
     fontScale, setFontScale, uiDensity, setUiDensity,
     isOnline, soundOn, handleToggleSound, ambientType, handleAmbientChange, ambientVol, handleAmbientVolumeChange,
     deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF,
-    triggerConfetti
+    triggerConfetti,
+    customAudioTracks, handleUploadCustomTrack, handleDeleteCustomTrack, handleTogglePlayCustomTrack, playingCustomTrackId
   };
 
   const screens = {
@@ -1093,7 +1149,12 @@ function SettingsScreen({
   fontScale,
   setFontScale,
   uiDensity,
-  setUiDensity
+  setUiDensity,
+  customAudioTracks = [],
+  handleUploadCustomTrack,
+  handleDeleteCustomTrack,
+  handleTogglePlayCustomTrack,
+  playingCustomTrackId
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -1351,6 +1412,92 @@ function SettingsScreen({
                 {snd.label}
               </button>
             ))}
+          </div>
+
+          {/* Custom Uploaded Focus Audio Tracks */}
+          <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px dashed rgba(139, 126, 116, 0.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <label style={{ fontSize: 12, color: "#5a4a42", fontWeight: 600, margin: 0 }}>
+                📁 Custom Focus Music ({customAudioTracks.length}):
+              </label>
+              <label style={{ fontSize: 11, background: "rgba(99, 102, 241, 0.15)", color: "#6366f1", padding: "4px 10px", borderRadius: 8, fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span>➕ Upload MP3</span>
+                <input
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: "none" }}
+                  onChange={e => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleUploadCustomTrack(e.target.files[0]);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
+            </div>
+
+            {customAudioTracks.length === 0 ? (
+              <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)", fontStyle: "italic", margin: "4px 0 0 0" }}>
+                No custom audio uploaded yet. Upload your favorite focus MP3/WAV tracks!
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {customAudioTracks.map(trk => {
+                  const isPlaying = playingCustomTrackId === trk.id;
+                  return (
+                    <div
+                      key={trk.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 10px",
+                        borderRadius: 10,
+                        background: isPlaying ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.6)",
+                        border: isPlaying ? "1.5px solid #6366f1" : "1px solid rgba(139, 126, 116, 0.15)"
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, overflow: "hidden", flex: 1 }}>
+                        <button
+                          onClick={() => handleTogglePlayCustomTrack(trk)}
+                          style={{
+                            border: "none",
+                            background: isPlaying ? "#6366f1" : "rgba(139, 126, 116, 0.15)",
+                            color: isPlaying ? "#fff" : "#5a4a42",
+                            width: 28,
+                            height: 28,
+                            borderRadius: "50%",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            cursor: "pointer",
+                            fontSize: 12,
+                            flexShrink: 0
+                          }}
+                        >
+                          {isPlaying ? "⏸️" : "▶️"}
+                        </button>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <p style={{ fontSize: 12, fontWeight: 600, color: "#5a4a42", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {trk.name}
+                          </p>
+                          <span style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.6)" }}>
+                            {(trk.size / (1024 * 1024)).toFixed(1)} MB
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteCustomTrack(trk.id)}
+                        style={{ border: "none", background: "transparent", color: "#ef4444", cursor: "pointer", padding: 4, fontSize: 13 }}
+                        title="Delete Track"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
