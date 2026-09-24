@@ -14,6 +14,8 @@ import {
 } from "./services/notificationService";
 import { compressImage } from "./utils/helpers";
 import { saveAudioTrack, getAllAudioTracks, deleteAudioTrack } from "./utils/audioStorage";
+import { isTTSEnabled, setTTSEnabled, speakText, stopSpeech } from "./services/speechService";
+import { exportWeeklyReflectionPDF } from "./utils/pdfWeeklyReport";
 
 // ═══════════════════════════════════════════════════════════════════════
 // STORAGE MOCK - Makes name & data persist permanently
@@ -344,6 +346,18 @@ export default function App() {
 
   const [customAudioTracks, setCustomAudioTracks] = useState([]);
   const [playingCustomTrackId, setPlayingCustomTrackId] = useState(null);
+  const [ttsOn, setTtsOn] = useState(() => isTTSEnabled());
+
+  const handleToggleTTS = (enabled) => {
+    setTTSEnabled(enabled);
+    setTtsOn(enabled);
+    if (!enabled) stopSpeech();
+  };
+
+  const handleExportWeeklyPDF = () => {
+    exportWeeklyReflectionPDF({ userName, moodLog, habits, tasks, meaningfulMoments, gratitude, dailyNotes });
+    if (showToast) showToast("Generated 7-Day Reflection PDF Report! 📄");
+  };
 
   useEffect(() => {
     getAllAudioTracks().then(tracks => {
@@ -746,7 +760,8 @@ export default function App() {
     isOnline, soundOn, handleToggleSound, ambientType, handleAmbientChange, ambientVol, handleAmbientVolumeChange,
     deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF,
     triggerConfetti,
-    customAudioTracks, handleUploadCustomTrack, handleDeleteCustomTrack, handleTogglePlayCustomTrack, playingCustomTrackId
+    customAudioTracks, handleUploadCustomTrack, handleDeleteCustomTrack, handleTogglePlayCustomTrack, playingCustomTrackId,
+    ttsOn, handleToggleTTS, handleExportWeeklyPDF, speakText, stopSpeech
   };
 
   const screens = {
@@ -1157,7 +1172,8 @@ function SettingsScreen({
   handleUploadCustomTrack,
   handleDeleteCustomTrack,
   handleTogglePlayCustomTrack,
-  playingCustomTrackId
+  playingCustomTrackId,
+  handleExportWeeklyPDF
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -1763,7 +1779,8 @@ function SettingsScreen({
         <button onClick={exportJson} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #a8e6cf, #dcedc1)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export JSON Backup</button>
         <button onClick={exportCsv} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export CSV Spreadsheets</button>
         <button onClick={handleExportMarkdown} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #c3aed6, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>📄 Export Journal as Markdown (.MD)</button>
-        <button onClick={handleExportPDF} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #a8e6cf)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🖨️ Export / Print Formatted PDF Report</button>
+        <button onClick={handleExportPDF} style={{ width: "100%", marginBottom: 8, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #a8e6cf)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>🖨️ Export / Print Formatted PDF Report</button>
+        <button onClick={handleExportWeeklyPDF} style={{ width: "100%", marginBottom: 10, padding: "10px 0", borderRadius: 10, background: "linear-gradient(135deg, #ff9a76, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }} className="shimmer-btn click-ripple">🌸 Download 7-Day Weekly Reflection PDF</button>
         <label style={{
           display: "block",
           width: "100%",
@@ -2889,7 +2906,7 @@ function MonthlyHeatmapPanel({ moodLog = [], energyLog = {} }) {
   );
 }
 
-function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude }) {
+function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude, handleExportWeeklyPDF }) {
   const totalCheckIns = moodLog ? moodLog.length : 0;
   const totalGratitudes = gratitude ? Object.keys(gratitude).length : 0;
 
@@ -2917,6 +2934,26 @@ function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude 
       <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>
         Your 14-day emotional health & life balance overview.
       </p>
+
+      {/* WEEKLY REFLECTION REPORT PDF EXPORTER CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14, borderLeft: "4px solid #ff9a76" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", margin: 0 }}>📄 Weekly Reflection Report (PDF)</p>
+          <span style={{ fontSize: 10, background: "rgba(255, 154, 118, 0.15)", color: "#ff9a76", padding: "2px 8px", borderRadius: 8, fontWeight: 700 }}>
+            7-Day Summary
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.65)", lineHeight: 1.5, marginBottom: 10 }}>
+          Export a printable summary card of your 7-day mood breakdown, habit streaks, completed tasks, and meaningful moments.
+        </p>
+        <button
+          onClick={handleExportWeeklyPDF}
+          className="shimmer-btn click-ripple"
+          style={{ width: "100%", padding: "11px 0", borderRadius: 12, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 12px rgba(255, 175, 189, 0.25)" }}
+        >
+          🌸 Export 7-Day Reflection PDF
+        </button>
+      </div>
 
       {/* MONTHLY 30-DAY EMOTIONAL HEATMAP */}
       <MonthlyHeatmapPanel moodLog={moodLog} energyLog={energyLog} />
@@ -3902,7 +3939,7 @@ function MomentForm({ type, setType, onAdd, onCancel }) {
   );
 }
 
-function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMoments, setTasks, setHabits, setTab, userName }) {
+function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMoments, setTasks, setHabits, setTab, userName, ttsOn, handleToggleTTS }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState("empathic");
@@ -3916,15 +3953,6 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
     { id: "mindful", name: "Mindful Guide", emoji: "🌿" },
     { id: "creative", name: "Creative Spark", emoji: "✨" }
   ];
-
-  const speakText = (text) => {
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 0.95;
-      window.speechSynthesis.speak(utterance);
-    }
-  };
 
   const handleActionChip = (chip, messageText) => {
     if (chip.actionType === "breath") {
@@ -3954,6 +3982,9 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
     const suggestions = detectActionableSuggestions(msg.content);
 
     setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, isCrisis, disclaimer, suggestions, time: now().toISOString() }] : [{ role: "assistant", content: reply, isCrisis, disclaimer, suggestions, time: now().toISOString() }]));
+    if (ttsOn) {
+      speakText(reply);
+    }
     setLoading(false);
   };
 
@@ -3975,7 +4006,7 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
 
   const endVoiceCall = () => {
     setVoiceCallActive(false);
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    stopSpeech();
   };
 
   return (
@@ -3998,6 +4029,12 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
             </p>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <button
+              onClick={() => handleToggleTTS && handleToggleTTS(!ttsOn)}
+              style={{ padding: "8px 12px", borderRadius: 14, background: ttsOn ? "rgba(99, 102, 241, 0.25)" : "rgba(255, 255, 255, 0.95)", border: ttsOn ? "1px solid #6366f1" : "none", color: ttsOn ? "#6366f1" : "#5a4a42", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}
+            >
+              {ttsOn ? "🔊 Voice On" : "🔇 Voice Off"}
+            </button>
             <button onClick={startVoiceCall} style={{ padding: "8px 12px", borderRadius: 14, background: "rgba(255, 255, 255, 0.95)", border: "none", color: "#2d6a4f", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
               🎙️ Voice Call
             </button>
