@@ -992,4 +992,68 @@ small {
   border-color: rgba(255, 154, 118, 0.5) !important;
   box-shadow: 0 0 20px rgba(255, 175, 189, 0.35) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   FEATURE ENHANCEMENTS: BADGES, DOT MATRIX & LIGHTBOX
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Habit 7-Day Completion Dot Matrix */
+.habit-dot-matrix {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.habit-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(139, 126, 116, 0.2);
+  transition: all 0.2s ease;
+}
+
+.habit-dot.completed {
+  background: linear-gradient(135deg, #10b981, #34d399);
+  border-color: #10b981;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.3);
+}
+
+/* Milestone Badges */
+@keyframes badgeShine {
+  0% { transform: scale(0.9); filter: brightness(1); }
+  50% { transform: scale(1.08); filter: brightness(1.25); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.badge-shine {
+  animation: badgeShine 2s ease-in-out infinite;
+}
+
+/* Lightbox Modal Overlay */
+.lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(16px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: fadeIn 0.25s ease;
+}
+
+.lightbox-card {
+  max-width: 90vw;
+  max-height: 85vh;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 24px;
+  padding: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
 

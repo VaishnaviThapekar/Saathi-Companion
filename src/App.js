@@ -3716,6 +3716,7 @@ function TimeCapsulePanel({ timeCapsules, setTimeCapsules }) {
 function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments, moodLog }) {
   const [sub, setSub] = useState("photos");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activePhotoLightbox, setActivePhotoLightbox] = useState(null);
   const [timeCapsules, setTimeCapsules] = useState(() => {
     try {
       const saved = localStorage.getItem("saathi_time_capsules");
@@ -3823,14 +3824,39 @@ function MemoriesScreen({ photos, setPhotos, notes, setNotes, meaningfulMoments,
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               {filteredPhotos.slice().reverse().map(ph => (
-                <div key={ph.id} className="glass" style={{ borderRadius: 14, overflow: "hidden" }}>
+                <div
+                  key={ph.id}
+                  onClick={() => setActivePhotoLightbox(ph)}
+                  className="glass card-3d-tilt glass-glow-border"
+                  style={{ borderRadius: 14, overflow: "hidden", cursor: "pointer" }}
+                >
                   <img src={ph.dataUrl} alt={ph.caption} style={{ width: "100%", height: 160, objectFit: "cover" }} />
                   <div style={{ padding: "8px 10px" }}>
-                    <p style={{ fontSize: 12, color: "#5a4a42", fontWeight: 500 }}>{ph.caption || "Untitled"}</p>
+                    <p style={{ fontSize: 12, color: "#5a4a42", fontWeight: 500, margin: 0 }}>{ph.caption || "Untitled"}</p>
                     <p style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.5)", marginTop: 2 }}>{fmtDate(ph.date)}</p>
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+
+          {activePhotoLightbox && (
+            <div className="lightbox-backdrop" onClick={() => setActivePhotoLightbox(null)}>
+              <div className="lightbox-card spring-bounce-in" onClick={e => e.stopPropagation()}>
+                <img src={activePhotoLightbox.dataUrl} alt={activePhotoLightbox.caption} style={{ maxWidth: "100%", maxHeight: "65vh", borderRadius: 16, objectFit: "contain" }} />
+                <div style={{ marginTop: 12, textAlign: "center" }}>
+                  <p style={{ fontSize: 16, fontWeight: 700, color: "#5a4a42", margin: 0 }}>{activePhotoLightbox.caption || "Scrapbook Memory"}</p>
+                  {activePhotoLightbox.emotion && (
+                    <span style={{ fontSize: 11, background: "rgba(255, 175, 189, 0.25)", color: "#ff9a76", padding: "3px 10px", borderRadius: 10, fontWeight: 700, display: "inline-block", marginTop: 6 }}>
+                      ❤️ Felt {activePhotoLightbox.emotion}
+                    </span>
+                  )}
+                  <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.5)", marginTop: 6 }}>Saved on {fmtDate(activePhotoLightbox.date)}</p>
+                  <button onClick={() => setActivePhotoLightbox(null)} style={{ marginTop: 12, padding: "8px 20px", borderRadius: 12, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                    Close Preview ✕
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
