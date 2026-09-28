@@ -160,7 +160,7 @@ const pickFrom = (items, seed) => items[seed % items.length];
 const normalize = (text) => (text || "").toLowerCase();
 const truncateText = (text, max = 80) => (text.length > max ? `${text.slice(0, max - 3)}...` : text);
 
-const getLocalChatReply = ({ userName, meaningfulMoments, message }) => {
+const getLocalChatReply = ({ userName, meaningfulMoments, message, personaId = "empathic" }) => {
   const msg = normalize(message);
   const name = userName || "there";
   const lastMoment = meaningfulMoments.slice().reverse().find(m => m && m.text);
@@ -170,24 +170,55 @@ const getLocalChatReply = ({ userName, meaningfulMoments, message }) => {
 
   let reply = "";
 
-  if (/^(hi|hello|hey)\b/.test(msg)) {
-    reply = `Hi ${name}. I'm here with you. How are you feeling right now?`;
-  } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
-    reply = `I'm really sorry you're feeling that way. ${memoryLine}Do you want to share what's weighing on you most?`;
-  } else if (/(happy|good|great|excited|proud|grateful|relieved)/.test(msg)) {
-    reply = `I'm glad to hear that. ${memoryLine}Want to capture what made it feel good?`;
-  } else if (/(tired|exhaust|sleep|burnout)/.test(msg)) {
-    reply = "Sounds like your body is asking for rest. Want to talk about what's draining you or try a quick reset?";
-  } else if (/(task|todo|plan|habit|goal|focus|procrast)/.test(msg)) {
-    reply = "We can break it into one small step. What's the tiniest next action you can do in 5 minutes?";
-  } else if (/thank|thanks/.test(msg)) {
-    reply = "You're welcome. I'm here for you. Want to keep going or pause for a breath?";
-  } else if (/help|what should i do|advice/.test(msg)) {
-    reply = "Let's keep it gentle and practical. What do you want to feel by the end of today?";
-  } else if (msg.length < 4) {
-    reply = "I'm here. If you want, tell me a little more about what's on your mind.";
+  if (personaId === "coach") {
+    if (/^(hi|hello|hey)\b/.test(msg)) {
+      reply = `Hey ${name}! Ready to crush your targets today? What's your #1 priority right now?`;
+    } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
+      reply = `I hear you. Heavy days happen to champions too. ${memoryLine}Let's take 1 minute to simplify: what's one tiny action we can control right now?`;
+    } else if (/(happy|good|great|excited|proud|grateful|relieved)/.test(msg)) {
+      reply = `Awesome work! Harness that high energy! ${memoryLine}What's the next milestone we can conquer while momentum is high?`;
+    } else {
+      reply = `Got it. ${memoryLine}Let's break that down into an immediate win. What's the smallest step you can complete in 5 minutes?`;
+    }
+  } else if (personaId === "mindful") {
+    if (/^(hi|hello|hey)\b/.test(msg)) {
+      reply = `Peaceful greetings, ${name}. Take a gentle breath in... and release. How is your mind feeling in this present moment?`;
+    } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
+      reply = `Notice the feeling without judgment. It is just a cloud passing through the sky. ${memoryLine}Would you like to take three slow breaths together?`;
+    } else if (/(happy|good|great|excited|proud|grateful|relieved)/.test(msg)) {
+      reply = `That is a beautiful gift. ${memoryLine}Savor this warm sensation in your chest. What are you most thankful for in this moment?`;
+    } else {
+      reply = `Everything unfolds in its own quiet time. ${memoryLine}What is most true for you right now as you pause?`;
+    }
+  } else if (personaId === "creative") {
+    if (/^(hi|hello|hey)\b/.test(msg)) {
+      reply = `Hey ${name}! What fresh idea or spark is playing in your mind today? ✨`;
+    } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
+      reply = `Feelings are like colors on a palette—even dark hues give depth to the story. ${memoryLine}If you wrote or drew this feeling, what shape would it take?`;
+    } else {
+      reply = `Fascinating perspective! ${memoryLine}If we turned this into an exciting project or journal note, how would we start?`;
+    }
   } else {
-    reply = `Thanks for sharing that. ${memoryLine}What feels most important to you right now?`;
+    // Default: empathic
+    if (/^(hi|hello|hey)\b/.test(msg)) {
+      reply = `Hi ${name}. I'm here with you. How are you feeling right now?`;
+    } else if (/(sad|down|lonely|depress|upset|cry|anx|stress|overwhelm)/.test(msg)) {
+      reply = `I'm really sorry you're feeling that way. ${memoryLine}Do you want to share what's weighing on you most?`;
+    } else if (/(happy|good|great|excited|proud|grateful|relieved)/.test(msg)) {
+      reply = `I'm glad to hear that. ${memoryLine}Want to capture what made it feel good?`;
+    } else if (/(tired|exhaust|sleep|burnout)/.test(msg)) {
+      reply = "Sounds like your body is asking for rest. Want to talk about what's draining you or try a quick reset?";
+    } else if (/(task|todo|plan|habit|goal|focus|procrast)/.test(msg)) {
+      reply = "We can break it into one small step. What's the tiniest next action you can do in 5 minutes?";
+    } else if (/thank|thanks/.test(msg)) {
+      reply = "You're welcome. I'm here for you. Want to keep going or pause for a breath?";
+    } else if (/help|what should i do|advice/.test(msg)) {
+      reply = "Let's keep it gentle and practical. What do you want to feel by the end of today?";
+    } else if (msg.length < 4) {
+      reply = "I'm here. If you want, tell me a little more about what's on your mind.";
+    } else {
+      reply = `Thanks for sharing that. ${memoryLine}What feels most important to you right now?`;
+    }
   }
 
   const followUps = [
@@ -2370,9 +2401,13 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
   };
 
   const getDailyStreak = (habit) => {
-    const set = new Set(habit.completions);
+    const set = new Set([...(habit.completions || []), ...(habit.freezesUsed || [])]);
     let streak = 0;
     const d = now();
+    const todayStr = dateKeyFrom(d);
+    if (!set.has(todayStr)) {
+      d.setDate(d.getDate() - 1);
+    }
     while (true) {
       const key = dateKeyFrom(d);
       if (!set.has(key)) break;
@@ -2552,6 +2587,11 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
           const weekCount = countWeekCompletions(h, now());
           const streak = h.schedule === "weekly" ? getWeeklyStreak(h) : getDailyStreak(h);
           const dom = LIFE_DOMAINS[h.domain || "health"] || LIFE_DOMAINS.health;
+          const yst = new Date();
+          yst.setDate(yst.getDate() - 1);
+          const ystKey = dateKeyFrom(yst);
+          const isFrozenYesterday = (h.freezesUsed || []).includes(ystKey);
+          const canProtectYesterday = !isDoneToday && !h.completions.includes(ystKey) && !isFrozenYesterday && (h.completions || []).length > 0;
           return (
             <div key={h.id} className="glass" style={{ borderRadius: 16, padding: "14px 16px", marginBottom: 12, borderLeft: `4px solid ${h.color}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -2569,10 +2609,39 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
                         {streak >= 30 ? `👑 ${streak}d Legend` : streak >= 7 ? `🔥 ${streak}d Streak` : `🏆 ${streak}d Streak`}
                       </span>
                     )}
+                    {isFrozenYesterday && (
+                      <span className="freeze-badge">
+                        🧊 Protected
+                      </span>
+                    )}
                   </div>
                   <p style={{ color: "rgba(139, 126, 116, 0.5)", fontSize: 11, marginTop: 2 }}>
                     {h.schedule === "weekly" ? `${weekCount}/${h.goalPerWeek} this week` : (isDoneToday ? "Done today" : "Not done today")}
                   </p>
+                  {canProtectYesterday && (
+                    <button
+                      onClick={() => {
+                        setHabits(p => p.map(item => item.id === h.id ? { ...item, freezesUsed: [...(item.freezesUsed || []), ystKey] } : item));
+                        if (showToast) showToast("Streak protected with Free Pass! 🧊🔥");
+                      }}
+                      style={{
+                        marginTop: 4,
+                        padding: "3px 8px",
+                        borderRadius: 10,
+                        background: "rgba(59, 130, 246, 0.12)",
+                        border: "1px solid rgba(59, 130, 246, 0.25)",
+                        color: "#2563eb",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 3
+                      }}
+                    >
+                      🧊 Protect Missed Streak (Free Pass)
+                    </button>
+                  )}
                   {h.reminderEnabled && h.reminderTime && (
                     <p style={{ color: "rgba(139, 126, 116, 0.5)", fontSize: 11, marginTop: 2 }}>
                       Reminder at {h.reminderTime}
@@ -3594,6 +3663,9 @@ function GroundingPanel({ setMeaningfulMoments, showToast }) {
 function VoicePanel({ voiceNotes, setVoiceNotes, showToast }) {
   const [recording, setRecording] = useState(false);
   const [transcript, setTranscript] = useState("");
+  const [playingId, setPlayingId] = useState(null);
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [searchQuery, setSearchQuery] = useState("");
   const recognitionRef = useRef(null);
 
   const deleteVoiceNote = (noteToDelete) => {
@@ -3640,30 +3712,96 @@ function VoicePanel({ voiceNotes, setVoiceNotes, showToast }) {
     }
   };
 
+  const handlePlayVoiceNote = (note) => {
+    if (playingId === note.id) {
+      stopSpeech();
+      setPlayingId(null);
+    } else {
+      stopSpeech();
+      setPlayingId(note.id);
+      speakText(note.transcript, playbackSpeed);
+      // Auto reset playing icon after speech duration approximation
+      const approxDuration = (note.transcript.split(" ").length / (2.5 * playbackSpeed)) * 1000 + 1000;
+      setTimeout(() => {
+        setPlayingId(p => p === note.id ? null : p);
+      }, Math.max(2000, approxDuration));
+    }
+  };
+
+  const filteredVoiceNotes = voiceNotes
+    .filter(v => (v.transcript || "").toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    .slice(-15)
+    .reverse();
+
   return (
     <div>
-      <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>Speak your thoughts. I'll transcribe them for you.</p>
+      <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>Speak your thoughts. I'll transcribe them for you in real-time.</p>
 
-      <div className="glass" style={{ borderRadius: 14, padding: 16, marginBottom: 16, textAlign: "center" }}>
-        <button onClick={recording ? stopRecording : startRecording} style={{ width: 80, height: 80, borderRadius: 40, background: recording ? "linear-gradient(135deg, #ff9a76, #ffafbd)" : "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", margin: "0 auto", boxShadow: recording ? "0 0 30px rgba(255, 154, 118, 0.5)" : "none", animation: recording ? "pulse 1.5s infinite" : "none" }}>
-          <Icon name="mic" size={32} color="#fff" sw={2} />
+      <div className="glass" style={{ borderRadius: 16, padding: 20, marginBottom: 16, textAlign: "center" }}>
+        <button onClick={recording ? stopRecording : startRecording} style={{ width: 84, height: 84, borderRadius: 42, background: recording ? "linear-gradient(135deg, #ff9a76, #ffafbd)" : "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", margin: "0 auto", boxShadow: recording ? "0 0 32px rgba(255, 154, 118, 0.5)" : "none", animation: recording ? "pulse 1.5s infinite" : "none" }}>
+          <Icon name="mic" size={34} color="#fff" sw={2} />
         </button>
-        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.5)", marginTop: 12 }}>{recording ? "Listening..." : "Tap to record"}</p>
-        {transcript && <p style={{ fontSize: 13, color: "#5a4a42", marginTop: 12, lineHeight: 1.5 }}>{transcript}</p>}
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginTop: 12, fontWeight: 600 }}>{recording ? "Recording live..." : "Tap to record voice note"}</p>
+
+        {/* Live Equalizer Waveform */}
+        <div className={`waveform-equalizer ${recording ? "active" : ""}`} style={{ marginTop: 10 }}>
+          <div className="waveform-bar" />
+          <div className="waveform-bar" />
+          <div className="waveform-bar" />
+          <div className="waveform-bar" />
+          <div className="waveform-bar" />
+        </div>
+
+        {transcript && <p style={{ fontSize: 13, color: "#5a4a42", marginTop: 12, lineHeight: 1.5, background: "rgba(255, 255, 255, 0.7)", padding: "10px 14px", borderRadius: 12 }}>{transcript}</p>}
       </div>
 
-      {voiceNotes.slice(-10).reverse().map(v => (
-        <div key={v.id} className="glass" style={{ borderRadius: 12, padding: "12px 14px", marginBottom: 8 }}>
+      {/* Speed Selector & Search Filter Bar */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 12 }}>
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="🔍 Search voice transcripts..."
+          style={{ flex: 1, padding: "6px 12px", borderRadius: 16, fontSize: 12 }}
+        />
+        <div style={{ display: "flex", alignItems: "center", gap: 4, background: "rgba(255, 255, 255, 0.7)", padding: "4px 8px", borderRadius: 14, border: "1px solid rgba(139, 126, 116, 0.15)" }}>
+          <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)", fontWeight: 600 }}>Speed:</span>
+          {[1, 1.25, 1.5, 2].map(speed => (
+            <button
+              key={speed}
+              onClick={() => setPlaybackSpeed(speed)}
+              style={{ padding: "2px 6px", borderRadius: 8, border: "none", background: playbackSpeed === speed ? "#ffc3a0" : "transparent", color: playbackSpeed === speed ? "#fff" : "#5a4a42", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+            >
+              {speed}x
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {filteredVoiceNotes.map(v => (
+        <div key={v.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <Icon name="mic" size={14} color="#ffc3a0" />
-              <span style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.4)" }}>{fmtDate(v.date)}</span>
+              <button
+                onClick={() => handlePlayVoiceNote(v)}
+                style={{ padding: "4px 10px", borderRadius: 12, background: playingId === v.id ? "linear-gradient(135deg, #10b981, #34d399)" : "rgba(255, 195, 160, 0.25)", border: "none", color: playingId === v.id ? "#fff" : "#8b5e3c", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+              >
+                {playingId === v.id ? "⏸️ Pause" : "▶️ Play Aloud"}
+              </button>
+              {playingId === v.id && (
+                <div className="waveform-equalizer active" style={{ height: 16 }}>
+                  <div className="waveform-bar" style={{ width: 3 }} />
+                  <div className="waveform-bar" style={{ width: 3 }} />
+                  <div className="waveform-bar" style={{ width: 3 }} />
+                </div>
+              )}
+              <span style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.5)" }}>{fmtDate(v.date)}</span>
             </div>
             <button onClick={() => deleteVoiceNote(v)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
               <Icon name="trash" size={14} />
             </button>
           </div>
-          <p style={{ color: "#5a4a42", fontSize: 13, lineHeight: 1.5 }}>{v.transcript}</p>
+          <p style={{ color: "#5a4a42", fontSize: 13, lineHeight: 1.5, margin: 0 }}>{v.transcript}</p>
         </div>
       ))}
     </div>

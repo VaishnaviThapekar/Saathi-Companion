@@ -1056,4 +1056,108 @@ small {
   overflow: hidden;
 }
 
+/* Audio Waveform Equalizer Visualizer */
+.waveform-equalizer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px;
+}
+
+.waveform-bar {
+  width: 4px;
+  height: 8px;
+  background: linear-gradient(135deg, #ffc3a0, #ffafbd);
+  border-radius: 2px;
+  transition: height 0.15s ease;
+}
+
+.waveform-equalizer.active .waveform-bar {
+  animation: equalizerWave 0.8s ease-in-out infinite alternate;
+}
+
+.waveform-equalizer.active .waveform-bar:nth-child(1) { animation-delay: 0.1s; }
+.waveform-equalizer.active .waveform-bar:nth-child(2) { animation-delay: 0.3s; }
+.waveform-equalizer.active .waveform-bar:nth-child(3) { animation-delay: 0.2s; }
+.waveform-equalizer.active .waveform-bar:nth-child(4) { animation-delay: 0.4s; }
+.waveform-equalizer.active .waveform-bar:nth-child(5) { animation-delay: 0.15s; }
+
+@keyframes equalizerWave {
+  0% { height: 6px; }
+  100% { height: 26px; }
+}
+
+/* Interactive Tag Pills */
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(255, 195, 160, 0.15);
+  color: #8b5e3c;
+  border: 1px solid rgba(255, 195, 160, 0.3);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
+}
+
+.tag-pill:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 195, 160, 0.28);
+}
+
+.tag-pill.active {
+  background: linear-gradient(135deg, #ffc3a0, #ffafbd);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(255, 175, 189, 0.35);
+}
+
+/* Streak Freeze Pass Badge */
+.freeze-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-size: 11px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+/* Persona Selector Chips */
+.persona-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(139, 126, 116, 0.15);
+  color: #5a4a42;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.persona-chip:hover {
+  background: rgba(255, 255, 255, 0.95);
+  transform: translateY(-2px);
+}
+
+.persona-chip.active {
+  background: linear-gradient(135deg, #ffc3a0, #ffafbd);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 6px 16px rgba(255, 175, 189, 0.35);
+}
+
+
 

@@ -349,18 +349,61 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                     {noteText && (
                         <span style={{
                             fontSize: 11,
-                            color: "rgba(139, 126, 116, 0.5)"
+                            color: "rgba(139, 126, 116, 0.6)"
                         }}>
-                            {noteText.length} characters
+                            {noteText.length} chars · {noteText.trim() ? noteText.trim().split(/\s+/).length : 0} words · ~{Math.max(1, Math.ceil((noteText.trim() ? noteText.trim().split(/\s+/).length : 0) / 200))} min read
                         </span>
                     )}
+                </div>
+
+                {/* Quick Tag Pills & Inspiration Prompt Generator */}
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                    <button
+                        onClick={() => {
+                            const prompts = [
+                                "What is one thing that made you smile today?",
+                                "What is something you realized or learned recently?",
+                                "How are you treating yourself with kindness today?",
+                                "What is a small win you want to celebrate?",
+                                "What is one weight you can let go of today?",
+                                "Who or what brought warm light into your day?"
+                            ];
+                            const p = prompts[Math.floor(Math.random() * prompts.length)];
+                            setNoteText(prev => prev ? `${prev}\n\n✨ Prompt: ${p}\n` : `✨ Prompt: ${p}\n`);
+                        }}
+                        style={{
+                            padding: "4px 10px",
+                            borderRadius: 14,
+                            background: "linear-gradient(135deg, #a8e6cf, #dcedc1)",
+                            border: "none",
+                            color: "#2d6a4f",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4
+                        }}
+                    >
+                        ✨ Inspire Prompt
+                    </button>
+                    {["#gratitude", "#reflection", "#wellness", "#work", "#personal", "#ideas"].map(tag => (
+                        <span
+                            key={tag}
+                            className="tag-pill"
+                            onClick={() => setNoteText(prev => prev ? `${prev} ${tag}` : tag)}
+                            title="Click to add tag"
+                        >
+                            {tag}
+                        </span>
+                    ))}
                 </div>
 
                 <textarea
                     value={noteText}
                     onChange={(e) => setNoteText(e.target.value)}
                     onBlur={saveNote}
-                    placeholder="Write your thoughts for this day..."
+                    placeholder="Write your thoughts for this day... (e.g. #gratitude felt peaceful today)"
                     rows={8}
                     style={{
                         width: "100%",
@@ -433,13 +476,13 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                 borderRadius: 12,
                 border: "1px solid rgba(168, 230, 207, 0.2)"
             }}>
-                <p style={{ fontSize: 12, color: "#5a4a42" }}>
-                    📝 <strong>{Object.keys(dailyNotes).length}</strong> notes saved •
+                <p style={{ fontSize: 12, color: "#5a4a42", margin: 0 }}>
+                    📝 <strong>{Object.keys(dailyNotes).length}</strong> total notes saved •
                     <strong> {Object.keys(dailyNotes).filter(key => {
                         const noteDate = new Date(key);
                         return noteDate.getMonth() === currentMonth.getMonth() &&
                             noteDate.getFullYear() === currentMonth.getFullYear();
-                    }).length}</strong> this month
+                    }).length}</strong> written this month
                 </p>
             </div>
         </div>
