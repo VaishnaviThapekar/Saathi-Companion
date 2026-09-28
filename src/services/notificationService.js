@@ -62,19 +62,34 @@ export const checkScheduledReminders = ({ tasks = [], lastMoodLogDate = null }) 
 
   const now = new Date();
   const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+  const currentTimeStr = `${String(currentHour).padStart(2, "0")}:${String(currentMinute).padStart(2, "0")}`;
   const todayStr = now.toISOString().split("T")[0];
 
-  // 1. Daily Evening Wellness Check-in (8:00 PM - 9:00 PM)
-  const lastCheckinAlert = localStorage.getItem("saathi_last_checkin_alert");
-  if (currentHour >= 20 && currentHour < 21 && lastCheckinAlert !== todayStr && lastMoodLogDate !== todayStr) {
+  const morningAlarmTime = localStorage.getItem("saathi_morning_alarm") || "08:00";
+  const eveningAlarmTime = localStorage.getItem("saathi_evening_alarm") || "21:00";
+
+  // 1. Morning Reflection Alarm
+  const lastMorningAlert = localStorage.getItem("saathi_last_morning_alert");
+  if (currentTimeStr === morningAlarmTime && lastMorningAlert !== todayStr) {
     sendLocalNotification(
-      "🌸 Time for your Evening Reflection",
-      "Take 1 minute with Saathi to log your mood and unwind your day."
+      "🌅 Good Morning! Time for Morning Reflection",
+      "Start your day with Saathi. Set your daily goals and mindfulness focus."
     );
-    localStorage.setItem("saathi_last_checkin_alert", todayStr);
+    localStorage.setItem("saathi_last_morning_alert", todayStr);
   }
 
-  // 2. High-priority Overdue Task Alerts
+  // 2. Evening Wind-Down Alarm
+  const lastEveningAlert = localStorage.getItem("saathi_last_evening_alert");
+  if ((currentTimeStr === eveningAlarmTime || (currentHour >= 20 && currentHour < 21)) && lastEveningAlert !== todayStr && lastMoodLogDate !== todayStr) {
+    sendLocalNotification(
+      "🌸 Evening Reflection & Wind-Down",
+      "Take 1 minute with Saathi to log your mood, review habit streaks, and unwind."
+    );
+    localStorage.setItem("saathi_last_evening_alert", todayStr);
+  }
+
+  // 3. High-priority Overdue Task Alerts
   const overdueHighTasks = tasks.filter(t => !t.completed && t.priority === "high" && t.date && t.date < todayStr);
   const lastTaskAlert = localStorage.getItem("saathi_last_task_alert");
   

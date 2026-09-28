@@ -16,6 +16,8 @@ import { compressImage } from "./utils/helpers";
 import { saveAudioTrack, getAllAudioTracks, deleteAudioTrack } from "./utils/audioStorage";
 import { isTTSEnabled, setTTSEnabled, speakText, stopSpeech } from "./services/speechService";
 import { exportWeeklyReflectionPDF } from "./utils/pdfWeeklyReport";
+import { LANGUAGES, getSavedLanguage, setSavedLanguage, t } from "./utils/i18n";
+import { getCloudSyncConfig, saveCloudSyncConfig, syncDataToCloud } from "./utils/cloudSync";
 
 // ═══════════════════════════════════════════════════════════════════════
 // STORAGE MOCK - Makes name & data persist permanently
@@ -255,6 +257,39 @@ export default function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem("saathi_theme") || "pastel");
   const [fontScale, setFontScale] = useState(() => localStorage.getItem("saathi_font_scale") || "medium");
   const [uiDensity, setUiDensity] = useState(() => localStorage.getItem("saathi_ui_density") || "comfortable");
+  const [lang, setLang] = useState(() => getSavedLanguage());
+  const [morningAlarm, setMorningAlarm] = useState(() => localStorage.getItem("saathi_morning_alarm") || "08:00");
+  const [eveningAlarm, setEveningAlarm] = useState(() => localStorage.getItem("saathi_evening_alarm") || "21:00");
+  const [cloudSyncConfig, setCloudSyncConfig] = useState(() => getCloudSyncConfig());
+
+  const handleSetLang = (code) => {
+    setSavedLanguage(code);
+    setLang(code);
+    if (showToast) showToast(`Language set to ${LANGUAGES[code]?.name || code} ${LANGUAGES[code]?.flag || ""}`);
+  };
+
+  const handleSetMorningAlarm = (time) => {
+    localStorage.setItem("saathi_morning_alarm", time);
+    setMorningAlarm(time);
+    if (showToast) showToast(`Morning alarm set to ${time} 🌅`);
+  };
+
+  const handleSetEveningAlarm = (time) => {
+    localStorage.setItem("saathi_evening_alarm", time);
+    setEveningAlarm(time);
+    if (showToast) showToast(`Evening alarm set to ${time} 🌙`);
+  };
+
+  const handleSaveCloudSyncConfig = (config) => {
+    saveCloudSyncConfig(config);
+    setCloudSyncConfig(config);
+    if (showToast) showToast(config.enabled ? "Cloud Sync Vault enabled! ☁️" : "Cloud Sync disabled");
+  };
+
+  const handleTriggerCloudSync = async () => {
+    const res = await syncDataToCloud({ userName, tasks, habits, notes, moodLog, meaningfulMoments });
+    if (showToast) showToast(res.success ? "Synced to Cloud Vault! ☁️" : `Cloud Sync: ${res.reason || "Failed"}`);
+  };
 
   // 5 Feature Upgrade States
   const [isOnline, setIsOnline] = useState(typeof navigator !== "undefined" ? navigator.onLine : true);
@@ -761,7 +796,8 @@ export default function App() {
     deferredInstallPrompt, handleInstallPWA, notifPermission, setNotifPermission, handleExportMarkdown, handleExportPDF,
     triggerConfetti,
     customAudioTracks, handleUploadCustomTrack, handleDeleteCustomTrack, handleTogglePlayCustomTrack, playingCustomTrackId,
-    ttsOn, handleToggleTTS, handleExportWeeklyPDF, speakText, stopSpeech
+    ttsOn, handleToggleTTS, handleExportWeeklyPDF, speakText, stopSpeech,
+    lang, handleSetLang, morningAlarm, handleSetMorningAlarm, eveningAlarm, handleSetEveningAlarm, cloudSyncConfig, handleSaveCloudSyncConfig, handleTriggerCloudSync, t
   };
 
   const screens = {
@@ -1173,7 +1209,15 @@ function SettingsScreen({
   handleDeleteCustomTrack,
   handleTogglePlayCustomTrack,
   playingCustomTrackId,
-  handleExportWeeklyPDF
+  handleExportWeeklyPDF,
+  lang = "en",
+  handleSetLang,
+  morningAlarm = "08:00",
+  handleSetMorningAlarm,
+  eveningAlarm = "21:00",
+  handleSetEveningAlarm,
+  cloudSyncConfig = {},
+  handleSaveCloudSyncConfig
 }) {
   const [pin, setPin] = useState("");
   const [pinConfirm, setPinConfirm] = useState("");
@@ -1386,6 +1430,94 @@ function SettingsScreen({
         >
           {deferredInstallPrompt ? "⚡ Install Saathi App Now" : "📲 Add to Home Screen"}
         </button>
+      </div>
+
+      {/* APP LANGUAGE SELECTION CARD (i18n) */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>App Language (i18n) 🌍</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 12 }}>Choose your preferred language interface.</p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+          {Object.entries(LANGUAGES).map(([code, item]) => (
+            <button
+              key={code}
+              onClick={() => handleSetLang && handleSetLang(code)}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: lang === code ? "2px solid #6366f1" : "1px solid rgba(139, 126, 116, 0.2)",
+                background: lang === code ? "rgba(99, 102, 241, 0.15)" : "rgba(255, 255, 255, 0.6)",
+                color: "#5a4a42",
+                fontSize: 12,
+                fontWeight: lang === code ? 700 : 500,
+                cursor: "pointer",
+                textAlign: "center"
+              }}
+            >
+              {item.flag} {item.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CUSTOM DAILY PUSH ALARMS CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>Custom Scheduled Daily Alarms ⏰</p>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 12 }}>Set notification times for your daily reflections.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#5a4a42" }}>🌅 Morning Reflection Alarm:</span>
+            <input
+              type="time"
+              value={morningAlarm}
+              onChange={e => handleSetMorningAlarm && handleSetMorningAlarm(e.target.value)}
+              style={{ background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(139, 126, 116, 0.2)", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "#5a4a42", outline: "none" }}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#5a4a42" }}>🌙 Evening Wind-Down Alarm:</span>
+            <input
+              type="time"
+              value={eveningAlarm}
+              onChange={e => handleSetEveningAlarm && handleSetEveningAlarm(e.target.value)}
+              style={{ background: "rgba(255, 255, 255, 0.8)", border: "1px solid rgba(139, 126, 116, 0.2)", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "#5a4a42", outline: "none" }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* CLOUD SYNC VAULT CARD */}
+      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+          <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, margin: 0 }}>☁️ Cloud Sync Vault (Optional)</p>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#5a4a42", fontWeight: 600, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={cloudSyncConfig.enabled || false}
+              onChange={e => handleSaveCloudSyncConfig && handleSaveCloudSyncConfig({ ...cloudSyncConfig, enabled: e.target.checked })}
+            />
+            Enabled
+          </label>
+        </div>
+        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 10 }}>
+          Optional cross-device cloud sync key while preserving local-first browser storage privacy.
+        </p>
+        {cloudSyncConfig.enabled && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input
+              placeholder="Cloud Endpoint URL (e.g. https://api.supabase.co)..."
+              value={cloudSyncConfig.endpoint || ""}
+              onChange={e => handleSaveCloudSyncConfig && handleSaveCloudSyncConfig({ ...cloudSyncConfig, endpoint: e.target.value })}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(139,126,116,0.2)", fontSize: 12, outline: "none" }}
+            />
+            <input
+              type="password"
+              placeholder="Secret Sync API Key..."
+              value={cloudSyncConfig.syncKey || ""}
+              onChange={e => handleSaveCloudSyncConfig && handleSaveCloudSyncConfig({ ...cloudSyncConfig, syncKey: e.target.value })}
+              style={{ width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(139,126,116,0.2)", fontSize: 12, outline: "none" }}
+            />
+          </div>
+        )}
       </div>
 
       {/* AUDIO SOUND FX & AMBIENT SOUNDSCAPES CARD */}
