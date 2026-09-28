@@ -545,6 +545,13 @@ export default function App() {
       setLockEnabled(normalizedEnabled); setLockPin(normalizedPin);
 
       setBooted(true);
+      if (typeof navigator !== "undefined" && navigator.storage && navigator.storage.persist) {
+        try {
+          await navigator.storage.persist();
+        } catch (err) {
+          // ignore error if permission not granted
+        }
+      }
       if ("Notification" in window && Notification.permission === "default") Notification.requestPermission();
     })();
   }, []);

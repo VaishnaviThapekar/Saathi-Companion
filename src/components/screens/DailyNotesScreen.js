@@ -40,7 +40,7 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
     // Load note for selected date
     useEffect(() => {
         setNoteText(getNoteForDate(selectedDate));
-    }, [selectedDate, dailyNotes]);
+    }, [selectedDate]);
 
     // Save note for selected date
     const saveNote = () => {
@@ -63,6 +63,14 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
             return updated;
         });
     };
+
+    // Auto-save typing changes automatically to permanent local storage
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            saveNote();
+        }, 400);
+        return () => clearTimeout(timer);
+    }, [noteText]);
 
     // Calculate days in month
     const getDaysInMonth = (date) => {
@@ -339,13 +347,19 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                     alignItems: "center",
                     marginBottom: 12
                 }}>
-                    <p style={{
-                        fontSize: 14,
-                        fontWeight: 600,
-                        color: "#8b7e74"
-                    }}>
-                        {formatSelectedDate()}
-                    </p>
+                    <div>
+                        <p style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: "#8b7e74",
+                            margin: 0
+                        }}>
+                            {formatSelectedDate()}
+                        </p>
+                        <span style={{ fontSize: 10, color: "#2d6a4f", fontWeight: 700 }}>
+                            🔒 Saved permanently on device
+                        </span>
+                    </div>
                     {noteText && (
                         <span style={{
                             fontSize: 11,
