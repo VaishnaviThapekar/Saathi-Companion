@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { loginUser, registerUser } from "../../utils/auth";
+import { loginUser, registerUser, loginGuestUser } from "../../utils/auth";
 
 // ═══════════════════════════════════════════════════════════════════════
 // LOGIN SCREEN COMPONENT
@@ -19,18 +19,32 @@ export default function LoginScreen({ onLoginSuccess, Icon }) {
         setLoading(true);
 
         try {
+            let res;
             if (isLogin) {
-                await loginUser(username, password);
+                res = await loginUser(username, password);
             } else {
-                await registerUser(username, password);
+                res = await registerUser(username, password);
             }
 
-            // Clear form and call success callback
+            // Clear form and call success callback with user details
             setUsername("");
             setPassword("");
-            onLoginSuccess();
+            onLoginSuccess(res);
         } catch (err) {
-            setError(err.message);
+            setError(err.message || "Authentication failed. Please check details.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGuestLogin = async () => {
+        setError("");
+        setLoading(true);
+        try {
+            const guest = await loginGuestUser();
+            onLoginSuccess(guest);
+        } catch (err) {
+            setError("Failed to start guest session.");
         } finally {
             setLoading(false);
         }
@@ -114,7 +128,7 @@ export default function LoginScreen({ onLoginSuccess, Icon }) {
                         </div>
                         {!isLogin && (
                             <p style={styles.passwordHint}>
-                                ℹ️ Minimum 6 characters
+                                ℹ️ Minimum 4 characters
                             </p>
                         )}
                     </div>
@@ -132,6 +146,27 @@ export default function LoginScreen({ onLoginSuccess, Icon }) {
                         {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
                     </button>
                 </form>
+
+                {/* Guest Quick Entry */}
+                <button
+                    type="button"
+                    onClick={handleGuestLogin}
+                    disabled={loading}
+                    style={{
+                        width: "100%",
+                        padding: "10px 0",
+                        borderRadius: "8px",
+                        background: "rgba(168, 230, 207, 0.2)",
+                        border: "1px solid rgba(168, 230, 207, 0.5)",
+                        color: "#2d6a4f",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        cursor: loading ? "not-allowed" : "pointer",
+                        marginBottom: "16px"
+                    }}
+                >
+                    ⚡ Continue as Guest
+                </button>
 
                 {/* Toggle Form Mode */}
                 <div style={styles.toggleSection}>

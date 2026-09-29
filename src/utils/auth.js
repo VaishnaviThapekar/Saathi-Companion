@@ -3,11 +3,27 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 export const hashPassword = async (password) => {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  try {
+    if (typeof crypto !== "undefined" && crypto.subtle && crypto.subtle.digest) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (e) {
+    // Fallthrough to fallback
+  }
+
+  // Fallback hash for non-HTTPS / HTTP environments where Web Crypto API is restricted
+  let hash = 0;
+  const str = `saathi_salt_${password}`;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return `local_hash_${Math.abs(hash).toString(16)}`;
 };
 
 export const hashPin = async (pin) => {
@@ -94,49 +110,66 @@ export const logout = () => {
 };
 
 export const registerUser = async (username, password) => {
-  if (!username || username.length < 3) {
-    throw new Error('Username must be at least 3 characters');
+  const cleanUsername = (username || '').trim();
+  const normalizedKey = cleanUsername.toLowerCase();
+
+  if (!cleanUsername || cleanUsername.length < 2) {
+    throw new Error('Username must be at least 2 characters');
   }
-  if (!password || password.length < 6) {
-    throw new Error('Password must be at least 6 characters');
+  if (!password || password.length < 4) {
+    throw new Error('Password must be at least 4 characters');
   }
 
   const users = getStoredUsers();
-  if (users[username]) {
-    throw new Error('Username already exists');
+  if (users[normalizedKey]) {
+    throw new Error('Username already exists. Please sign in instead.');
   }
 
   const hashedPassword = await hashPassword(password);
-  users[username] = {
-    username,
+  users[normalizedKey] = {
+    username: cleanUsername,
     passwordHash: hashedPassword,
     createdAt: new Date().toISOString()
   };
 
   saveStoredUsers(users);
-  setSession({ username });
-  return { username };
+  setSession({ username: cleanUsername });
+  return { username: cleanUsername };
 };
 
 export const loginUser = async (username, password) => {
-  if (!username || !password) {
+  const cleanUsername = (username || '').trim();
+  const normalizedKey = cleanUsername.toLowerCase();
+
+  if (!cleanUsername || !password) {
     throw new Error('Username and password are required');
   }
 
   const users = getStoredUsers();
-  const user = users[username];
+  let user = users[normalizedKey];
+
+  // Also check if matches exact key for backward compatibility
+  if (!user && users[username]) {
+    user = users[username];
+  }
 
   if (!user) {
-    throw new Error('Invalid username or password');
+    throw new Error('User not found. Check username or tap "Sign Up".');
   }
 
   const hashedPassword = await hashPassword(password);
   if (user.passwordHash !== hashedPassword) {
-    throw new Error('Invalid username or password');
+    throw new Error('Incorrect password. Please try again.');
   }
 
-  setSession({ username });
-  return { username };
+  setSession({ username: user.username });
+  return { username: user.username };
+};
+
+export const loginGuestUser = async () => {
+  const guestUser = { username: "Guest" };
+  setSession(guestUser);
+  return guestUser;
 };
 
 export const isAuthenticated = () => {
