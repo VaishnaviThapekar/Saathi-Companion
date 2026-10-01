@@ -401,6 +401,25 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                     >
                         ✨ Inspire Prompt
                     </button>
+                    {["😊 Happy", "🧘 Calm", "⚡ Energized", "🌧️ Heavy", "💭 Reflective"].map(moodItem => (
+                        <span
+                            key={moodItem}
+                            style={{
+                                padding: "4px 10px",
+                                borderRadius: 14,
+                                background: "rgba(255, 255, 255, 0.8)",
+                                border: "1px solid rgba(139, 126, 116, 0.2)",
+                                fontSize: 11,
+                                fontWeight: 600,
+                                cursor: "pointer",
+                                color: "#5a4a42"
+                            }}
+                            onClick={() => setNoteText(prev => prev ? `${prev} ${moodItem}` : moodItem)}
+                            title="Stamp mood emoji"
+                        >
+                            {moodItem}
+                        </span>
+                    ))}
                     {["#gratitude", "#reflection", "#wellness", "#work", "#personal", "#ideas"].map(tag => (
                         <span
                             key={tag}
