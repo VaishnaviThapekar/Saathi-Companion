@@ -30,11 +30,14 @@ export default function HomeScreen({
     emotionalPatterns,
     autoSuggestions,
     energyLog,
+    ambientType,
+    handleAmbientChange,
     Icon // Pass Icon component as prop
 }) {
     const [showCheckIn, setShowCheckIn] = useState(false);
     const [mood, setMood] = useState("");
     const [struggles, setStruggles] = useState("");
+    const [quoteIndex, setQuoteIndex] = useState(() => new Date().getDate() % 6);
 
     const today = todayKey();
 
@@ -784,15 +787,100 @@ export default function HomeScreen({
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                         <Icon name="brain" size={16} color="#a78bfa" />
-                        <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(139, 126, 116, 0.7)" }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(139, 126, 116, 0.7)", margin: 0 }}>
                             AI Insights
                         </p>
                     </div>
-                    <p style={{ fontSize: 13, color: "#5a4a42", lineHeight: 1.7 }}>
+                    <p style={{ fontSize: 13, color: "#5a4a42", lineHeight: 1.7, margin: 0 }}>
                         {emotionalPatterns}
                     </p>
                 </div>
             )}
+
+            {/* DAILY WISDOM & INSPIRATIONAL QUOTE CARD */}
+            {(() => {
+                const QUOTES = [
+                    { text: "Happiness is not something readymade. It comes from your own actions.", author: "Dalai Lama" },
+                    { text: "Peace comes from within. Do not seek it without.", author: "Buddha" },
+                    { text: "What you do today can improve all your tomorrows.", author: "Ralph Marston" },
+                    { text: "The secret of getting ahead is getting started.", author: "Mark Twain" },
+                    { text: "Small daily improvements over time lead to stunning results.", author: "Robin Sharma" },
+                    { text: "You don't have to control your thoughts. You just have to stop letting them control you.", author: "Dan Millman" }
+                ];
+                const currentQ = QUOTES[quoteIndex % QUOTES.length];
+
+                return (
+                    <div className="glass" style={{
+                        borderRadius: 20,
+                        padding: 18,
+                        marginBottom: 16,
+                        background: "linear-gradient(135deg, rgba(255, 195, 160, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%)",
+                        border: "1px solid rgba(255, 195, 160, 0.35)",
+                        boxShadow: "0 8px 24px rgba(255, 195, 160, 0.12)"
+                    }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 18 }}>✨</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "#8b5e3c", textTransform: "uppercase", letterSpacing: "0.8px" }}>Daily Wisdom</span>
+                            </div>
+                            <button
+                                onClick={() => setQuoteIndex(prev => (prev + 1) % QUOTES.length)}
+                                style={{ padding: "4px 10px", borderRadius: 12, background: "rgba(255, 195, 160, 0.25)", border: "none", color: "#8b5e3c", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                            >
+                                🔄 Refresh
+                            </button>
+                        </div>
+                        <p style={{ fontSize: 14, fontFamily: "'Crimson Text', serif", fontStyle: "italic", color: "#5a4a42", lineHeight: 1.6, margin: "0 0 8px 0" }}>
+                            "{currentQ.text}"
+                        </p>
+                        <p style={{ fontSize: 11, fontWeight: 700, color: "#ff9a76", margin: 0, textAlign: "right" }}>
+                            — {currentQ.author}
+                        </p>
+                    </div>
+                );
+            })()}
+
+            {/* PROCEDURAL AMBIENT SOUND GENERATOR WIDGET */}
+            <div className="glass" style={{
+                borderRadius: 20,
+                padding: 18,
+                marginBottom: 16,
+                background: "linear-gradient(135deg, rgba(168, 230, 207, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%)",
+                border: "1px solid rgba(168, 230, 207, 0.35)"
+            }}>
+                        <div style={{ display: "flex", alignItems: "center", justify: "space-between", marginBottom: 10 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 18 }}>🎵</span>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: "#2d6a4f", textTransform: "uppercase", letterSpacing: "0.8px" }}>Ambient Focus Soundscapes</span>
+                            </div>
+                        </div>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                            {[
+                                { id: "rain", label: "🌧️ Rain" },
+                                { id: "ocean", label: "🌊 Ocean" },
+                                { id: "wind", label: "🌲 Wind" },
+                                { id: "zen", label: "🔔 Zen" },
+                                { id: "none", label: "⏹️ Off" }
+                            ].map(snd => (
+                                <button
+                                    key={snd.id}
+                                    onClick={() => handleAmbientChange && handleAmbientChange(snd.id)}
+                                    style={{
+                                        padding: "6px 12px",
+                                        borderRadius: 14,
+                                        border: ambientType === snd.id ? "none" : "1px solid rgba(139, 126, 116, 0.2)",
+                                        background: ambientType === snd.id ? "linear-gradient(135deg, #10b981, #34d399)" : "rgba(255, 255, 255, 0.7)",
+                                        color: ambientType === snd.id ? "#fff" : "#5a4a42",
+                                        fontSize: 11,
+                                        fontWeight: 700,
+                                        cursor: "pointer"
+                                    }}
+                                >
+                                    {snd.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
             {/* Auto Suggestions */}
             {autoSuggestions && autoSuggestions.length > 0 && (
@@ -802,7 +890,7 @@ export default function HomeScreen({
                 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
                         <Icon name="spark" size={16} color="#ff9a76" />
-                        <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(139, 126, 116, 0.7)" }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: "rgba(139, 126, 116, 0.7)", margin: 0 }}>
                             Suggestions for You
                         </p>
                     </div>
@@ -817,7 +905,7 @@ export default function HomeScreen({
                                 borderLeft: "3px solid #ff9a76"
                             }}
                         >
-                            <p style={{ fontSize: 13, color: "#5a4a42" }}>
+                            <p style={{ fontSize: 13, color: "#5a4a42", margin: 0 }}>
                                 {suggestion}
                             </p>
                         </div>
