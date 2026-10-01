@@ -401,6 +401,54 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                     >
                         ✨ Inspire Prompt
                     </button>
+                    <button
+                        onClick={() => {
+                            const summaries = [
+                                "🌟 Growth Realization: You've shown remarkable consistency in staying present and tracking your habits this week.",
+                                "💖 Emotional Balance: Moments of calm reflection (#gratitude, #reflection) have helped balance out daily pressures.",
+                                "🎯 Gentle Focus: Keep honoring your rest and small daily wins—momentum builds one day at a time!"
+                            ];
+                            const summary = summaries.join("\n\n");
+                            setNoteText(prev => prev ? `${prev}\n\n🤖 AI Mindful Reflection Digest:\n${summary}\n` : `🤖 AI Mindful Reflection Digest:\n${summary}\n`);
+                        }}
+                        style={{
+                            padding: "4px 10px",
+                            borderRadius: 14,
+                            background: "linear-gradient(135deg, #c3aed6, #ffafbd)",
+                            border: "none",
+                            color: "#fff",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4
+                        }}
+                    >
+                        🧠 AI Digest
+                    </button>
+                    {["• Bullet", "✓ Task", "⭐ Highlight", "🕒 Time"].map(fmt => (
+                        <button
+                            key={fmt}
+                            onClick={() => {
+                                const nowStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                                const snippet = fmt === "• Bullet" ? "\n• " : fmt === "✓ Task" ? "\n[ ] " : fmt === "⭐ Highlight" ? "\n⭐ " : `\n[${nowStr}] `;
+                                setNoteText(prev => prev ? `${prev}${snippet}` : snippet.trimStart());
+                            }}
+                            style={{
+                                padding: "4px 8px",
+                                borderRadius: 12,
+                                background: "rgba(255, 195, 160, 0.2)",
+                                border: "1px solid rgba(255, 195, 160, 0.4)",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                color: "#8b5e3c",
+                                cursor: "pointer"
+                            }}
+                        >
+                            {fmt}
+                        </button>
+                    ))}
                     {["😊 Happy", "🧘 Calm", "⚡ Energized", "🌧️ Heavy", "💭 Reflective"].map(moodItem => (
                         <span
                             key={moodItem}
