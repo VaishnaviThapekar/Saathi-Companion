@@ -2507,6 +2507,51 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
 
       <div style={{ padding: "0 24px" }}>
 
+      {/* TROPHY CABINET & STREAK MILESTONE BADGES */}
+      {(() => {
+        const maxStreak = Math.max(0, ...habits.map(h => getDailyStreak(h)));
+        const badges = [
+          { name: "3-Day Spark", threshold: 3, icon: "🥉", bg: "linear-gradient(135deg, #cd7f32, #e9967a)" },
+          { name: "7-Day Master", threshold: 7, icon: "🥈", bg: "linear-gradient(135deg, #c0c0c0, #e6e6fa)" },
+          { name: "14-Day Pioneer", threshold: 14, icon: "🥇", bg: "linear-gradient(135deg, #ffd700, #ffb703)" },
+          { name: "30-Day Legend", threshold: 30, icon: "👑", bg: "linear-gradient(135deg, #ffc3a0, #ffafbd)" }
+        ];
+
+        return (
+          <div className="glass" style={{ borderRadius: 18, padding: 14, marginBottom: 16, background: "linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 243, 226, 0.8))" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#8b5e3c", textTransform: "uppercase", letterSpacing: "0.8px" }}>🏆 Streak Trophy Cabinet</span>
+              <span style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)", fontWeight: 600 }}>Top Streak: {maxStreak} Days 🔥</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              {badges.map(b => {
+                const unlocked = maxStreak >= b.threshold;
+                return (
+                  <div
+                    key={b.threshold}
+                    style={{
+                      padding: "8px 4px",
+                      borderRadius: 14,
+                      background: unlocked ? b.bg : "rgba(139, 126, 116, 0.08)",
+                      color: unlocked ? "#fff" : "rgba(139, 126, 116, 0.4)",
+                      textAlign: "center",
+                      border: unlocked ? "none" : "1px dashed rgba(139, 126, 116, 0.2)",
+                      boxShadow: unlocked ? "0 4px 12px rgba(0,0,0,0.12)" : "none",
+                      filter: unlocked ? "none" : "grayscale(80%)",
+                      opacity: unlocked ? 1 : 0.65
+                    }}
+                    title={unlocked ? `Unlocked! (${b.name})` : `Reach ${b.threshold}-day streak to unlock`}
+                  >
+                    <div style={{ fontSize: 18 }}>{b.icon}</div>
+                    <div style={{ fontSize: 9, fontWeight: 700, marginTop: 2 }}>{b.name}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
         <button onClick={() => setShowArchived(s => !s)} style={{ background: "none", border: "none", color: "rgba(139, 126, 116, 0.6)", fontSize: 12, cursor: "pointer" }}>
           {showArchived ? "Hide archived" : "Show archived"}
