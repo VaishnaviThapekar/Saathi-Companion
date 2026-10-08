@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { playMoodLog } from "../../services/soundService";
+import { playMoodLog, playAlarmSound, ALARM_SOUND_TYPES } from "../../services/soundService";
 
 // Helper functions - these should match what's in your App.js
 const todayKey = () => {
@@ -38,6 +38,13 @@ export default function HomeScreen({
     const [mood, setMood] = useState("");
     const [struggles, setStruggles] = useState("");
     const [quoteIndex, setQuoteIndex] = useState(() => new Date().getDate() % 6);
+    const [alarmSound, setAlarmSoundState] = useState(() => localStorage.getItem("saathi_alarm_sound") || "gentle");
+
+    const handleSelectAlarmSound = (soundId) => {
+        setAlarmSoundState(soundId);
+        localStorage.setItem("saathi_alarm_sound", soundId);
+        playAlarmSound(soundId);
+    };
 
     const today = todayKey();
 
@@ -881,6 +888,53 @@ export default function HomeScreen({
                             ))}
                         </div>
                     </div>
+
+            {/* CUSTOMIZABLE ALARM RINGTONE SELECTOR CARD */}
+            <div className="glass" style={{
+                borderRadius: 20,
+                padding: 18,
+                marginBottom: 16,
+                background: "linear-gradient(135deg, rgba(255, 195, 160, 0.15) 0%, rgba(255, 255, 255, 0.95) 100%)",
+                border: "1px solid rgba(255, 195, 160, 0.35)",
+                boxShadow: "0 8px 24px rgba(255, 195, 160, 0.12)"
+            }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 18 }}>⏰</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#8b5e3c", textTransform: "uppercase", letterSpacing: "0.8px" }}>Alarm Ringtone Synthesizer</span>
+                    </div>
+                    <button
+                        onClick={() => playAlarmSound(alarmSound)}
+                        style={{ padding: "4px 10px", borderRadius: 12, background: "rgba(255, 195, 160, 0.3)", border: "none", color: "#8b5e3c", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}
+                    >
+                        🔊 Preview
+                    </button>
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {ALARM_SOUND_TYPES.map(snd => (
+                        <button
+                            key={snd.id}
+                            onClick={() => handleSelectAlarmSound(snd.id)}
+                            style={{
+                                padding: "6px 12px",
+                                borderRadius: 14,
+                                border: alarmSound === snd.id ? "none" : "1px solid rgba(139, 126, 116, 0.2)",
+                                background: alarmSound === snd.id ? "linear-gradient(135deg, #ff9a76, #ff6b81)" : "rgba(255, 255, 255, 0.7)",
+                                color: alarmSound === snd.id ? "#fff" : "#5a4a42",
+                                fontSize: 11,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 4
+                            }}
+                        >
+                            <span>{snd.icon}</span>
+                            <span>{snd.name}</span>
+                        </button>
+                    ))}
+                </div>
+            </div>
 
             {/* Auto Suggestions */}
             {autoSuggestions && autoSuggestions.length > 0 && (

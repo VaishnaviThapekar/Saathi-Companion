@@ -14,7 +14,7 @@ import {
 } from "./services/notificationService";
 import { compressImage } from "./utils/helpers";
 import { saveAudioTrack, getAllAudioTracks, deleteAudioTrack } from "./utils/audioStorage";
-import { isTTSEnabled, setTTSEnabled, speakText, stopSpeech } from "./services/speechService";
+import { isTTSEnabled, setTTSEnabled, speakText, stopSpeech, isSTTSupported, createSpeechRecognizer } from "./services/speechService";
 import { exportWeeklyReflectionPDF } from "./utils/pdfWeeklyReport";
 import { LANGUAGES, getSavedLanguage, setSavedLanguage, t } from "./utils/i18n";
 import { getCloudSyncConfig, saveCloudSyncConfig, syncDataToCloud } from "./utils/cloudSync";
@@ -4331,9 +4331,23 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState("empathic");
+  const [isListening, setIsListening] = useState(false);
+  const [speechTranscript, setSpeechTranscript] = useState("");
+  const [voiceCallActive, setVoiceCallActive] = useState(false);
+  const [callTranscript, setCallTranscript] = useState("");
   const endRef = useRef(null);
+  const recognizerRef = useRef(null);
+  const callRecognizerRef = useRef(null);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chatMsgs, loading]);
+
+  // Clean up speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognizerRef.current) try { recognizerRef.current.stop(); } catch (e) {}
+      if (callRecognizerRef.current) try { callRecognizerRef.current.stop(); } catch (e) {}
+    };
+  }, []);
 
   const personas = [
     { id: "empathic", name: "Empathic", emoji: "🌸" },
@@ -4354,12 +4368,14 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
     }
   };
 
-  const send = async () => {
-    if (!input.trim() || loading) return;
-    const msg = { role: "user", content: input, time: now().toISOString() };
+  const send = async (explicitText) => {
+    const textToSend = explicitText || input;
+    if (!textToSend.trim() || loading) return;
+    const msg = { role: "user", content: textToSend, time: now().toISOString() };
     const updated = [...chatMsgs, msg];
     setChatMsgs(updated);
     setInput("");
+    setSpeechTranscript("");
     setLoading(true);
 
     await new Promise(resolve => setTimeout(resolve, 350));
@@ -4370,10 +4386,67 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
     const suggestions = detectActionableSuggestions(msg.content);
 
     setChatMsgs(p => (Array.isArray(p) ? [...p, { role: "assistant", content: reply, isCrisis, disclaimer, suggestions, time: now().toISOString() }] : [{ role: "assistant", content: reply, isCrisis, disclaimer, suggestions, time: now().toISOString() }]));
-    if (ttsOn) {
-      speakText(reply);
+    if (ttsOn || voiceCallActive) {
+      speakText(reply, () => {
+        if (voiceCallActive) {
+          listenInVoiceCall();
+        }
+      });
     }
     setLoading(false);
+  };
+
+  const toggleMicListening = () => {
+    if (isListening) {
+      if (recognizerRef.current) try { recognizerRef.current.stop(); } catch (e) {}
+      setIsListening(false);
+      return;
+    }
+
+    if (!isSTTSupported()) {
+      alert("Speech recognition is not supported in your current browser. Please try Chrome, Edge, or Safari.");
+      return;
+    }
+
+    const rec = createSpeechRecognizer({
+      onStart: () => setIsListening(true),
+      onResult: (transcript, isFinal) => {
+        setInput(transcript);
+        setSpeechTranscript(transcript);
+        if (isFinal) {
+          setIsListening(false);
+        }
+      },
+      onError: (err) => {
+        console.warn("Speech STT error:", err);
+        setIsListening(false);
+      },
+      onEnd: () => setIsListening(false)
+    });
+
+    if (rec) {
+      recognizerRef.current = rec;
+      rec.start();
+    }
+  };
+
+  const listenInVoiceCall = () => {
+    if (!isSTTSupported() || !voiceCallActive) return;
+    const rec = createSpeechRecognizer({
+      onStart: () => setCallTranscript("Listening to you..."),
+      onResult: (transcript, isFinal) => {
+        setCallTranscript(transcript);
+        if (isFinal && transcript.trim()) {
+          send(transcript);
+        }
+      },
+      onError: () => setCallTranscript("Waiting for speech..."),
+      onEnd: () => {}
+    });
+    if (rec) {
+      callRecognizerRef.current = rec;
+      rec.start();
+    }
   };
 
   const clearChat = () => {
@@ -4385,21 +4458,24 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
     }
   };
 
-  const [voiceCallActive, setVoiceCallActive] = useState(false);
-
   const startVoiceCall = () => {
     setVoiceCallActive(true);
-    speakText(`Hello ${userName || "friend"}! I am here with you. What's on your mind?`);
+    setCallTranscript("Connecting voice companion...");
+    speakText(`Hello ${userName || "friend"}! I am here with you. What's on your mind?`, () => {
+      listenInVoiceCall();
+    });
   };
 
   const endVoiceCall = () => {
     setVoiceCallActive(false);
+    setCallTranscript("");
+    if (callRecognizerRef.current) try { callRecognizerRef.current.stop(); } catch (e) {}
     stopSpeech();
   };
 
   return (
     <div className="fade-in" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 90px)" }}>
-      {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
+      {/* HERO TOP BANNER */}
       <div style={{
         background: "linear-gradient(135deg, #ffc3a0 0%, #ffafbd 50%, #c3aed6 100%)",
         padding: "28px 24px 32px",
@@ -4539,16 +4615,31 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
         )}
         <div ref={endRef} />
       </div>
+
+      {/* INPUT BAR WITH MIC & SPEECH RECOGNITION */}
       <div style={{ padding: "12px 20px 8px", borderTop: "1px solid rgba(255, 195, 160, 0.2)" }}>
+        {isListening && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 12px", background: "rgba(255, 107, 129, 0.12)", borderRadius: 14, marginBottom: 8, border: "1px solid rgba(255, 107, 129, 0.3)", fontSize: 12, color: "#d9534f" }}>
+            <span style={{ width: 8, height: 8, borderRadius: 4, background: "#ff4757", animation: "ping 1s infinite" }} />
+            <span>Listening... {speechTranscript ? `"${speechTranscript}"` : "Speak into your microphone"}</span>
+          </div>
+        )}
         <div style={{ display: "flex", gap: 8 }}>
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()} placeholder="Message…"
-            style={{ flex: 1, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.25)", borderRadius: 22, padding: "10px 16px", color: "#5a4a42", fontSize: 14, outline: "none" }} disabled={loading} />
-          <button onClick={send} disabled={loading || !input.trim()} style={{ width: 44, height: 44, borderRadius: 22, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.4 : 1 }}>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()} placeholder={isListening ? "Listening..." : "Message…"}
+            style={{ flex: 1, background: "rgba(255, 255, 255, 0.6)", border: isListening ? "2px solid #ff6b81" : "1px solid rgba(255, 195, 160, 0.25)", borderRadius: 22, padding: "10px 16px", color: "#5a4a42", fontSize: 14, outline: "none" }} disabled={loading} />
+          
+          {/* Hands-Free Mic Button */}
+          <button onClick={toggleMicListening} title="Hands-Free Voice Input" style={{ width: 44, height: 44, borderRadius: 22, background: isListening ? "linear-gradient(135deg, #ff4757, #ff6b81)" : "rgba(255, 255, 255, 0.85)", border: isListening ? "none" : "1px solid rgba(255, 195, 160, 0.4)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 0.2s ease" }}>
+            <Icon name="mic" size={18} color={isListening ? "#fff" : "#ff9a76"} sw={2} />
+          </button>
+
+          <button onClick={() => send()} disabled={loading || !input.trim()} style={{ width: 44, height: 44, borderRadius: 22, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: loading || !input.trim() ? 0.4 : 1 }}>
             <Icon name="send" size={18} color="#fff" sw={2} />
           </button>
         </div>
       </div>
 
+      {/* 24/7 VOICE CALL MODAL OVERLAY */}
       {voiceCallActive && (
         <div style={{
           position: "fixed",
@@ -4563,11 +4654,11 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
           color: "#fff"
         }}>
           <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 2, color: "rgba(255, 255, 255, 0.7)", marginBottom: 8 }}>24/7 Live Companion Call</p>
+            <p style={{ fontSize: 13, textTransform: "uppercase", letterSpacing: 2, color: "rgba(255, 255, 255, 0.7)", marginBottom: 8 }}>24/7 Live Companion Voice Call</p>
             <h2 style={{ fontSize: 28, fontFamily: "'Crimson Text', serif", fontStyle: "italic", margin: 0 }}>Saathi Voice Call</h2>
           </div>
 
-          <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
             <div style={{
               width: 160,
               height: 160,
@@ -4576,15 +4667,29 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 0 60px rgba(255, 175, 189, 0.6)"
+              boxShadow: "0 0 60px rgba(255, 175, 189, 0.6)",
+              animation: "glowPulse 2s ease-in-out infinite"
             }}>
               <Icon name="heart" size={64} color="#fff" sw={2} />
+            </div>
+            
+            {/* Live speech wave indicator */}
+            <div style={{ display: "flex", gap: 4, marginTop: 24, alignItems: "center", height: 24 }}>
+              {[0, 1, 2, 3, 4].map(idx => (
+                <div key={idx} style={{
+                  width: 4,
+                  height: 16 + (idx % 3) * 8,
+                  background: "#ffafbd",
+                  borderRadius: 2,
+                  animation: `bounce 1.${idx + 2}s ease-in-out infinite`
+                }} />
+              ))}
             </div>
           </div>
 
           <div style={{ textAlign: "center", width: "100%", maxWidth: 320 }}>
-            <p style={{ fontSize: 14, color: "rgba(255, 255, 255, 0.9)", marginBottom: 24, fontStyle: "italic" }}>
-              "I am here with you 24/7..."
+            <p style={{ fontSize: 14, color: "rgba(255, 255, 255, 0.9)", marginBottom: 24, fontStyle: "italic", minHeight: 40 }}>
+              "{callTranscript || "Listening to you..."}"
             </p>
 
             <button onClick={endVoiceCall} style={{

@@ -89,10 +89,74 @@ export const playTabSwitch = () => {
   } catch (e) {}
 };
 
-export const playAlarmPing = () => {
-  playChimeSound(660, 0.3);
-  setTimeout(() => playChimeSound(880, 0.5), 120);
+export const ALARM_SOUND_TYPES = [
+  { id: "gentle", name: "Gentle Chime", icon: "🔔", desc: "E-Major soothing arpeggio chime" },
+  { id: "sunrise", name: "Sunrise Bell", icon: "🌅", desc: "Warm harmonic bell tone with gentle modulation" },
+  { id: "zen", name: "Zen Singing Bowl", icon: "🧘", desc: "432Hz deep resonant meditation bowl" },
+  { id: "pulse", name: "Energizing Pulse", icon: "⚡", desc: "Dual tone uplifting arpeggio pulse" }
+];
+
+export const playAlarmSound = (type = 'gentle') => {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    if (type === 'sunrise') {
+      const osc = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc2.type = 'sine';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc2.frequency.setValueAtTime(880, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.0);
+
+      osc.connect(gain);
+      osc2.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime);
+      osc2.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 2.0);
+      osc2.stop(ctx.currentTime + 2.0);
+    } else if (type === 'zen') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(216, ctx.currentTime);
+
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.5);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 2.5);
+    } else if (type === 'pulse') {
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+        setTimeout(() => {
+          playChimeSound(freq, 0.4, 0.25);
+        }, idx * 100);
+      });
+    } else {
+      [329.63, 415.30, 493.88, 659.25].forEach((freq, idx) => {
+        setTimeout(() => {
+          playChimeSound(freq, 0.5, 0.22);
+        }, idx * 120);
+      });
+    }
+  } catch (err) {
+    console.warn("Alarm sound playback error:", err);
+  }
 };
+
+export const playAlarmPing = () => {
+  playAlarmSound(localStorage.getItem('saathi_alarm_sound') || 'gentle');
+};
+
 
 // 🌿 Procedural Ambient Soundscapes (Rain, Ocean, Pink Noise, Zen Drone)
 const createNoiseBuffer = (ctx) => {
