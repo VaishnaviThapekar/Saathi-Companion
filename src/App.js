@@ -3199,6 +3199,197 @@ function MonthlyHeatmapPanel({ moodLog = [], energyLog = {} }) {
   );
 }
 
+export function InteractiveMoodHabitAnalytics({ moodLog = [], habits = [], energyLog = {} }) {
+  const [hoveredPoint, setHoveredPoint] = useState(null);
+  const [selectedRange, setSelectedRange] = useState("7");
+
+  const numDays = parseInt(selectedRange, 10);
+  
+  const moodMeta = {
+    amazing: { label: "Amazing", score: 5, color: "#a8e6cf", emoji: "😄" },
+    good: { label: "Good", score: 4, color: "#dcedc1", emoji: "😊" },
+    okay: { label: "Okay", score: 3, color: "#ffd3b6", emoji: "😐" },
+    struggling: { label: "Struggling", score: 2, color: "#ffafbd", emoji: "😔" },
+    overwhelmed: { label: "Overwhelmed", score: 1, color: "#ff9a76", emoji: "😰" },
+  };
+
+  const daysData = Array.from({ length: numDays }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (numDays - 1 - i));
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const key = `${year}-${month}-${day}`;
+    const dayLabel = d.toLocaleDateString("en-US", { weekday: "short" });
+    const dateLabel = d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    
+    const dayEntry = moodLog ? moodLog.filter(m => m.date === key).slice(-1)[0] : null;
+    const score = dayEntry ? (moodMeta[dayEntry.mood]?.score || 3) : 0;
+    const completedHabitsCount = habits.filter(h => (h.completions || []).includes(key)).length;
+    
+    return { key, dayLabel, dateLabel, entry: dayEntry, score, completedHabitsCount };
+  });
+
+  const svgWidth = 320;
+  const svgHeight = 140;
+  const paddingX = 24;
+  const paddingY = 20;
+
+  const points = daysData.map((d, index) => {
+    const x = paddingX + (index / Math.max(1, numDays - 1)) * (svgWidth - paddingX * 2);
+    const normalizedScore = d.score > 0 ? d.score : 3;
+    const y = svgHeight - paddingY - ((normalizedScore - 1) / 4) * (svgHeight - paddingY * 2);
+    return { x, y, ...d };
+  });
+
+  const linePath = points.reduce((acc, p, i) => {
+    return i === 0 ? `M ${p.x},${p.y}` : `${acc} L ${p.x},${p.y}`;
+  }, "");
+
+  const areaPath = points.length > 0
+    ? `${linePath} L ${points[points.length - 1].x},${svgHeight - paddingY} L ${points[0].x},${svgHeight - paddingY} Z`
+    : "";
+
+  const totalActiveHabits = habits.filter(h => !h.archived).length;
+  const totalExpectedCompletions = totalActiveHabits * numDays;
+  const totalActualCompletions = daysData.reduce((acc, d) => acc + d.completedHabitsCount, 0);
+  const habitCompletionRate = totalExpectedCompletions > 0 ? Math.round((totalActualCompletions / totalExpectedCompletions) * 100) : 0;
+
+  const highHabitDays = daysData.filter(d => d.completedHabitsCount >= 1 && d.score > 0);
+  const lowHabitDays = daysData.filter(d => d.completedHabitsCount === 0 && d.score > 0);
+  
+  const avgMoodHighHabit = highHabitDays.length > 0 ? (highHabitDays.reduce((a, b) => a + b.score, 0) / highHabitDays.length).toFixed(1) : 0;
+  const avgMoodLowHabit = lowHabitDays.length > 0 ? (lowHabitDays.reduce((a, b) => a + b.score, 0) / lowHabitDays.length).toFixed(1) : 0;
+  const moodBoostDiff = (avgMoodHighHabit > 0 && avgMoodLowHabit > 0) ? (avgMoodHighHabit - avgMoodLowHabit).toFixed(1) : null;
+
+  return (
+    <div className="glass" style={{ borderRadius: 20, padding: 18, marginBottom: 16, border: "1px solid rgba(255, 195, 160, 0.4)", boxShadow: "0 8px 32px rgba(255, 195, 160, 0.12)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 18 }}>📈</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "#5a4a42", textTransform: "uppercase", letterSpacing: "0.5px" }}>Mood & Habit Flow Analytics</span>
+          </div>
+          <p style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.65)", margin: "2px 0 0 0" }}>Interactive SVG trends & habit correlations</p>
+        </div>
+        <div style={{ display: "flex", gap: 4, background: "rgba(139, 126, 116, 0.08)", padding: 3, borderRadius: 12 }}>
+          {["7", "14"].map(range => (
+            <button
+              key={range}
+              onClick={() => setSelectedRange(range)}
+              style={{
+                padding: "3px 10px",
+                borderRadius: 9,
+                border: "none",
+                background: selectedRange === range ? "linear-gradient(135deg, #ffc3a0, #ffafbd)" : "transparent",
+                color: selectedRange === range ? "#fff" : "#5a4a42",
+                fontSize: 10,
+                fontWeight: 700,
+                cursor: "pointer"
+              }}
+            >
+              {range}D
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ position: "relative", marginBottom: 16, background: "rgba(255, 255, 255, 0.4)", borderRadius: 14, padding: "10px 4px 6px" }}>
+        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} style={{ width: "100%", height: "auto", overflow: "visible" }}>
+          <defs>
+            <linearGradient id="moodAreaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#ffafbd" stopOpacity="0.45" />
+              <stop offset="100%" stopColor="#ffafbd" stopOpacity="0.0" />
+            </linearGradient>
+            <linearGradient id="lineGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#ff9a76" />
+              <stop offset="50%" stopColor="#ffafbd" />
+              <stop offset="100%" stopColor="#c3aed6" />
+            </linearGradient>
+          </defs>
+
+          {[1, 2, 3, 4, 5].map(score => {
+            const y = svgHeight - paddingY - ((score - 1) / 4) * (svgHeight - paddingY * 2);
+            return (
+              <line key={score} x1={paddingX} y1={y} x2={svgWidth - paddingX} y2={y} stroke="rgba(139, 126, 116, 0.1)" strokeDasharray="3 3" strokeWidth="1" />
+            );
+          })}
+
+          {areaPath && <path d={areaPath} fill="url(#moodAreaGrad)" />}
+          {linePath && <path d={linePath} fill="none" stroke="url(#lineGrad)" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />}
+
+          {points.map((p) => {
+            const isHovered = hoveredPoint?.key === p.key;
+            return (
+              <g key={p.key} onMouseEnter={() => setHoveredPoint(p)} onMouseLeave={() => setHoveredPoint(null)} onClick={() => setHoveredPoint(p)} style={{ cursor: "pointer" }}>
+                <circle cx={p.x} cy={p.y} r={isHovered ? 7 : 4} fill={p.entry ? (moodMeta[p.entry.mood]?.color || "#ffafbd") : "#e0e0e0"} stroke="#fff" strokeWidth={isHovered ? 2.5 : 1.5} style={{ transition: "all 0.2s ease" }} />
+                <text x={p.x} y={svgHeight - 4} fontSize="8" fill="rgba(139, 126, 116, 0.7)" textAnchor="middle" fontWeight="600">{p.dayLabel}</text>
+              </g>
+            );
+          })}
+        </svg>
+
+        {hoveredPoint && (
+          <div style={{
+            position: "absolute",
+            top: 6,
+            left: "50%",
+            transform: "translateX(-50%)",
+            background: "rgba(90, 74, 66, 0.92)",
+            color: "#fff",
+            backdropFilter: "blur(10px)",
+            padding: "6px 12px",
+            borderRadius: 12,
+            fontSize: 11,
+            fontWeight: 600,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            zIndex: 10
+          }}>
+            <span>{hoveredPoint.dateLabel}</span>
+            <span>{hoveredPoint.entry ? `${moodMeta[hoveredPoint.entry.mood]?.emoji} ${moodMeta[hoveredPoint.entry.mood]?.label}` : "No check-in"}</span>
+            <span style={{ color: "#ffafbd", borderLeft: "1px solid rgba(255,255,255,0.2)", paddingLeft: 8 }}>{hoveredPoint.completedHabitsCount} habits done</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 12, alignItems: "center" }}>
+        <div style={{ position: "relative", width: 90, height: 90, margin: "0 auto" }}>
+          <svg viewBox="0 0 36 36" style={{ width: "100%", height: "100%", transform: "rotate(-90deg)" }}>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255, 195, 160, 0.2)" strokeWidth="3.5" />
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="url(#lineGrad)" strokeWidth="3.5" strokeDasharray={`${habitCompletionRate}, 100`} strokeLinecap="round" />
+          </svg>
+          <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: "#5a4a42" }}>{habitCompletionRate}%</span>
+            <span style={{ fontSize: 8, color: "rgba(139, 126, 116, 0.6)", textTransform: "uppercase" }}>Habit Rate</span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ padding: "8px 12px", borderRadius: 12, background: "rgba(255, 255, 255, 0.6)", border: "1px solid rgba(255, 195, 160, 0.3)" }}>
+            <p style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.6)", margin: 0 }}>Habit Completions ({selectedRange}D)</p>
+            <p style={{ fontSize: 15, fontWeight: 800, color: "#5a4a42", margin: "2px 0 0 0" }}>
+              {totalActualCompletions} <span style={{ fontSize: 11, fontWeight: 500, color: "rgba(139, 126, 116, 0.6)" }}>/ {totalExpectedCompletions} goal</span>
+            </p>
+          </div>
+
+          {moodBoostDiff && (
+            <div style={{ padding: "8px 12px", borderRadius: 12, background: "rgba(168, 230, 207, 0.2)", border: "1px solid rgba(168, 230, 207, 0.4)" }}>
+              <p style={{ fontSize: 10, color: "#2d6a4f", fontWeight: 700, margin: 0 }}>💡 Smart Correlation Insight</p>
+              <p style={{ fontSize: 11, color: "#5a4a42", margin: "2px 0 0 0", lineHeight: 1.3 }}>
+                Completing habits boosts your mood score by <strong style={{ color: "#2d6a4f" }}>+{moodBoostDiff} pts</strong>!
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude, handleExportWeeklyPDF }) {
   const totalCheckIns = moodLog ? moodLog.length : 0;
   const totalGratitudes = gratitude ? Object.keys(gratitude).length : 0;
@@ -3227,6 +3418,9 @@ function InsightsPanel({ tasks = [], habits = [], moodLog, energyLog, gratitude,
       <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.6)", marginBottom: 14, lineHeight: 1.6 }}>
         Your 14-day emotional health & life balance overview.
       </p>
+
+      {/* INTERACTIVE MOOD & HABIT FLOW ANALYTICS DASHBOARD CARD */}
+      <InteractiveMoodHabitAnalytics moodLog={moodLog} habits={habits} energyLog={energyLog} />
 
       {/* WEEKLY REFLECTION REPORT PDF EXPORTER CARD */}
       <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 14, borderLeft: "4px solid #ff9a76" }}>

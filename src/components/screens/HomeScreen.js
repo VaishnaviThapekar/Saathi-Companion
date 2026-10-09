@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { playMoodLog, playAlarmSound, ALARM_SOUND_TYPES } from "../../services/soundService";
+import { InteractiveMoodHabitAnalytics } from "../../App";
 
 // Helper functions - these should match what's in your App.js
 const todayKey = () => {
@@ -26,6 +27,7 @@ export default function HomeScreen({
     lastCheckInDate,
     setDailyCheckIn,
     setLastCheckInDate,
+    moodLog,
     setMoodLog,
     emotionalPatterns,
     autoSuggestions,
@@ -803,6 +805,11 @@ export default function HomeScreen({
                     </p>
                 </div>
             )}
+
+            {/* INTERACTIVE MOOD & HABIT FLOW ANALYTICS DASHBOARD WIDGET */}
+            <div style={{ padding: "0 20px" }}>
+                <InteractiveMoodHabitAnalytics moodLog={moodLog} habits={habits} energyLog={energyLog} />
+            </div>
 
             {/* DAILY WISDOM & INSPIRATIONAL QUOTE CARD */}
             {(() => {
