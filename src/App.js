@@ -2084,8 +2084,35 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
     low: { label: "🟢 Low", bg: "rgba(168, 230, 207, 0.25)", color: "#2e7d32" }
   };
 
+  const [newSubtaskText, setNewSubtaskText] = useState({});
+
+  const addSubtask = (taskId, text) => {
+    if (!text || !text.trim()) return;
+    setTasks(p => p.map(t => {
+      if (t.id !== taskId) return t;
+      const subtasks = t.subtasks || [];
+      return { ...t, subtasks: [...subtasks, { id: uid(), text: text.trim(), done: false }] };
+    }));
+    setNewSubtaskText(p => ({ ...p, [taskId]: "" }));
+  };
+
+  const toggleSubtask = (taskId, subtaskId) => {
+    setTasks(p => p.map(t => {
+      if (t.id !== taskId) return t;
+      const subtasks = (t.subtasks || []).map(s => s.id === subtaskId ? { ...s, done: !s.done } : s);
+      const allDone = subtasks.length > 0 && subtasks.every(s => s.done);
+      if (allDone && !t.done) {
+        playTaskComplete();
+        if (triggerConfetti) triggerConfetti();
+      }
+      return { ...t, subtasks, done: allDone ? true : t.done };
+    }));
+  };
+
   const filtered = tasks.filter(t => {
-    const matchPriority = filterPriority === "all" || (t.priority || "medium") === filterPriority;
+    const matchPriority = filterPriority === "all" ? true :
+      filterPriority === "overdue" ? isOverdue(t) :
+      (t.priority || "medium") === filterPriority;
     const matchDomain = filterDomain === "all" || (t.domain || "work") === filterDomain;
     return matchPriority && matchDomain;
   });
@@ -2193,7 +2220,7 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
 
         {/* Priority Filter Bar */}
         <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" }}>
-          {["all", "high", "medium", "low"].map(p => (
+          {["all", "high", "medium", "low", "overdue"].map(p => (
             <button
               key={p}
               onClick={() => setFilterPriority(p)}
@@ -2207,10 +2234,11 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
                 fontWeight: filterPriority === p ? 700 : 500,
                 cursor: "pointer",
                 textTransform: "capitalize",
-                transition: "all 0.2s"
+                transition: "all 0.2s",
+                whiteSpace: "nowrap"
               }}
             >
-              {p === "all" ? "All Priorities" : p === "high" ? "🔴 High" : p === "medium" ? "🟡 Med" : "🟢 Low"}
+              {p === "all" ? "All Priorities" : p === "high" ? "🔴 High" : p === "medium" ? "🟡 Med" : p === "low" ? "🟢 Low" : "⚠️ Overdue"}
             </button>
           ))}
         </div>
@@ -2253,35 +2281,76 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
         sorted.map(t => {
           const prio = pMeta[t.priority || "medium"];
           const dom = LIFE_DOMAINS[t.domain || "work"] || LIFE_DOMAINS.work;
+          const subtasks = t.subtasks || [];
+          const subtasksDone = subtasks.filter(s => s.done).length;
+
           return (
-            <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", alignItems: "center", gap: 12, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : dom.color}` }}>
-              <button onClick={() => setTasks(p => p.map(x => {
-                if (x.id === t.id) {
-                  if (!x.done) {
-                    playTaskComplete();
-                    if (triggerConfetti) triggerConfetti();
+            <div key={t.id} className="glass" style={{ borderRadius: 14, padding: "12px 14px", marginBottom: 8, display: "flex", flexDirection: "column", gap: 8, borderLeft: `3px solid ${t.done ? "#a8e6cf" : isOverdue(t) ? "#ff9a76" : dom.color}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <button onClick={() => setTasks(p => p.map(x => {
+                  if (x.id === t.id) {
+                    if (!x.done) {
+                      playTaskComplete();
+                      if (triggerConfetti) triggerConfetti();
+                    }
+                    return { ...x, done: !x.done };
                   }
-                  return { ...x, done: !x.done };
-                }
-                return x;
-              }))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
-                {t.done && <Icon name="check" size={12} color="#fff" sw={3} />}
-              </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                  <p style={{ color: t.done ? "rgba(139, 126, 116, 0.4)" : "#5a4a42", fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", margin: 0 }}>{t.title}</p>
-                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: dom.bg, color: dom.color, fontWeight: 700 }}>
-                    {dom.label}
-                  </span>
-                  <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: prio.bg, color: prio.color, fontWeight: 700 }}>
-                    {prio.label}
-                  </span>
+                  return x;
+                }))} style={{ width: 24, height: 24, borderRadius: 12, border: `2px solid ${t.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.25)"}`, background: t.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "all 0.2s" }}>
+                  {t.done && <Icon name="check" size={12} color="#fff" sw={3} />}
+                </button>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <p style={{ color: t.done ? "rgba(139, 126, 116, 0.4)" : "#5a4a42", fontSize: 14, fontWeight: 500, textDecoration: t.done ? "line-through" : "none", margin: 0 }}>{t.title}</p>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: dom.bg, color: dom.color, fontWeight: 700 }}>
+                      {dom.label}
+                    </span>
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: prio.bg, color: prio.color, fontWeight: 700 }}>
+                      {prio.label}
+                    </span>
+                    {subtasks.length > 0 && (
+                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: "rgba(99, 102, 241, 0.12)", color: "#6366f1", fontWeight: 700 }}>
+                        📋 {subtasksDone}/{subtasks.length} Steps
+                      </span>
+                    )}
+                  </div>
+                  {(t.dueDate || t.dueTime) && <p style={{ color: isOverdue(t) ? "#ff9a76" : "rgba(139, 126, 116, 0.4)", fontSize: 11, marginTop: 2 }}>{isOverdue(t) ? "⚠ " : ""}Due {fmtDate(t.dueDate)}{t.dueTime ? ` at ${fmtTime(`${t.dueDate}T${t.dueTime}`)}` : ""}</p>}
                 </div>
-                {(t.dueDate || t.dueTime) && <p style={{ color: isOverdue(t) ? "#ff9a76" : "rgba(139, 126, 116, 0.4)", fontSize: 11, marginTop: 2 }}>{isOverdue(t) ? "⚠ " : ""}Due {fmtDate(t.dueDate)}{t.dueTime ? ` at ${fmtTime(`${t.dueDate}T${t.dueTime}`)}` : ""}</p>}
+
+                <button onClick={() => deleteTask(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
+                  <Icon name="trash" size={16} />
+                </button>
               </div>
-              <button onClick={() => deleteTask(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
-                <Icon name="trash" size={16} />
-              </button>
+
+              {/* SUBTASK CHECKLIST INLINE TOOLBAR */}
+              <div style={{ marginTop: 4, paddingTop: 6, borderTop: "1px dashed rgba(139, 126, 116, 0.15)" }}>
+                {subtasks.length > 0 && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 6 }}>
+                    {subtasks.map(s => (
+                      <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 28 }}>
+                        <button onClick={() => toggleSubtask(t.id, s.id)} style={{ width: 16, height: 16, borderRadius: 8, border: `1.5px solid ${s.done ? "#a8e6cf" : "rgba(139, 126, 116, 0.3)"}`, background: s.done ? "#a8e6cf" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 }}>
+                          {s.done && <Icon name="check" size={9} color="#fff" sw={3} />}
+                        </button>
+                        <span style={{ fontSize: 12, color: s.done ? "rgba(139, 126, 116, 0.4)" : "#5a4a42", textDecoration: s.done ? "line-through" : "none" }}>{s.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: 6, paddingLeft: 28 }}>
+                  <input
+                    value={newSubtaskText[t.id] || ""}
+                    onChange={e => setNewSubtaskText({ ...newSubtaskText, [t.id]: e.target.value })}
+                    onKeyDown={e => e.key === "Enter" && addSubtask(t.id, newSubtaskText[t.id])}
+                    placeholder="+ Add subtask step…"
+                    style={{ flex: 1, background: "rgba(255,255,255,0.5)", border: "1px solid rgba(139, 126, 116, 0.15)", borderRadius: 8, padding: "4px 8px", fontSize: 11, outline: "none" }}
+                  />
+                  <button onClick={() => addSubtask(t.id, newSubtaskText[t.id])} style={{ padding: "4px 8px", borderRadius: 8, background: "rgba(255, 195, 160, 0.3)", border: "none", color: "#8b5e3c", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>
+                    + Step
+                  </button>
+                </div>
+              </div>
             </div>
           );
         })
@@ -2397,6 +2466,7 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
   const [reminderQuery, setReminderQuery] = useState("");
   const [reminderFilter, setReminderFilter] = useState("enabled");
   const [filterDomain, setFilterDomain] = useState("all");
+  const [selectedHabitForCalendar, setSelectedHabitForCalendar] = useState(null);
 
   const today = todayKey();
   const visibleHabits = habits.filter(h => {
@@ -2697,9 +2767,11 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
                       {dom.label}
                     </span>
                     {streak >= 3 && (
-                      <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: streak >= 30 ? "rgba(255, 195, 160, 0.3)" : streak >= 7 ? "rgba(255, 175, 189, 0.3)" : "rgba(168, 230, 207, 0.3)", color: "#5a4a42", fontWeight: 700 }}>
-                        {streak >= 30 ? `👑 ${streak}d Legend` : streak >= 7 ? `🔥 ${streak}d Streak` : `🏆 ${streak}d Streak`}
-                      </span>
+                      <button onClick={() => setSelectedHabitForCalendar(h)} style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
+                        <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 6, background: streak >= 30 ? "rgba(255, 195, 160, 0.3)" : streak >= 7 ? "rgba(255, 175, 189, 0.3)" : "rgba(168, 230, 207, 0.3)", color: "#5a4a42", fontWeight: 700 }}>
+                          {streak >= 30 ? `👑 ${streak}d Legend` : streak >= 7 ? `🔥 ${streak}d Streak` : `🏆 ${streak}d Streak`}
+                        </span>
+                      </button>
                     )}
                     {isFrozenYesterday && (
                       <span className="freeze-badge">
@@ -2748,19 +2820,74 @@ function HabitsScreen({ habits, setHabits, showToast, triggerConfetti }) {
                 </button>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+              {/* 7-Day Interactive Progress Bar */}
+              <div onClick={() => setSelectedHabitForCalendar(h)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 10, cursor: "pointer" }} title="Click to view full 7-day streak calendar & freeze pass status">
                 <div style={{ display: "flex", gap: 6 }}>
-                  {last7Days.map(d => (
-                    <div key={d} style={{ width: 10, height: 10, borderRadius: 5, background: h.completions.includes(d) ? h.color : "rgba(139, 126, 116, 0.2)" }} />
-                  ))}
+                  {last7Days.map(d => {
+                    const isDone = (h.completions || []).includes(d);
+                    const isFrozen = (h.freezesUsed || []).includes(d);
+                    return (
+                      <div key={d} style={{ width: 10, height: 10, borderRadius: 5, background: isDone ? h.color : isFrozen ? "#60a5fa" : "rgba(139, 126, 116, 0.2)" }} title={`${d}: ${isDone ? "Completed" : isFrozen ? "Streak Protected (Freeze Pass)" : "Missed"}`} />
+                    );
+                  })}
                 </div>
                 <div style={{ fontSize: 11, color: "rgba(139, 126, 116, 0.6)" }}>
-                  {streak} {h.schedule === "weekly" ? "week" : "day"} streak
+                  {streak} {h.schedule === "weekly" ? "week" : "day"} streak 📅
                 </div>
               </div>
             </div>
           );
         })
+      )}
+
+      {/* STREAK PROTECTION CALENDAR MODAL OVERLAY */}
+      {selectedHabitForCalendar && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div className="glass fade-in" style={{ width: "100%", maxWidth: 360, borderRadius: 24, padding: 20, background: "rgba(255,255,255,0.95)", border: "1px solid rgba(255, 195, 160, 0.5)", boxShadow: "0 12px 36px rgba(0,0,0,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+              <div>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "#5a4a42", margin: 0 }}>📅 Streak Protection Calendar</h3>
+                <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", margin: "2px 0 0 0" }}>{selectedHabitForCalendar.title}</p>
+              </div>
+              <button onClick={() => setSelectedHabitForCalendar(null)} style={{ background: "none", border: "none", fontSize: 18, color: "rgba(139, 126, 116, 0.5)", cursor: "pointer" }}>✕</button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+              {last7Days.map(dayKey => {
+                const d = new Date(`${dayKey}T00:00:00`);
+                const dayLabel = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+                const isDone = (selectedHabitForCalendar.completions || []).includes(dayKey);
+                const isFrozen = (selectedHabitForCalendar.freezesUsed || []).includes(dayKey);
+
+                return (
+                  <div key={dayKey} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderRadius: 12, background: isDone ? "rgba(168, 230, 207, 0.2)" : isFrozen ? "rgba(96, 165, 250, 0.15)" : "rgba(139, 126, 116, 0.08)" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#5a4a42" }}>{dayLabel} {dayKey === today ? "(Today)" : ""}</span>
+                    {isDone ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#2d6a4f" }}>✅ Completed</span>
+                    ) : isFrozen ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "#2563eb" }}>🧊 Freeze Protected</span>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setHabits(p => p.map(item => item.id === selectedHabitForCalendar.id ? { ...item, freezesUsed: [...(item.freezesUsed || []), dayKey] } : item));
+                          setSelectedHabitForCalendar(p => p ? { ...p, freezesUsed: [...(p.freezesUsed || []), dayKey] } : null);
+                          if (showToast) showToast(`Protected ${dayLabel} with Freeze Pass! 🧊`);
+                        }}
+                        style={{ padding: "4px 10px", borderRadius: 8, background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.3)", color: "#2563eb", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                      >
+                        🧊 Apply Freeze Pass
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button onClick={() => setSelectedHabitForCalendar(null)} style={{ width: "100%", padding: "12px 0", borderRadius: 14, background: "linear-gradient(135deg, #ffc3a0, #ffafbd)", border: "none", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              Done
+            </button>
+          </div>
+        </div>
       )}
 
       <div style={{ marginTop: 20 }}>
