@@ -18,6 +18,11 @@ const now = () => new Date();
 
 export default function HomeScreen({
     userName,
+    theme = "pastel",
+    setTheme,
+    accentColor = "coral",
+    setAccentColor,
+    showToast,
     tasks,
     habits,
     setHabits,
@@ -112,13 +117,13 @@ export default function HomeScreen({
         <div style={{ padding: "0 0 90px 0", position: "relative" }}>
             {/* HERO SECTION WITH GRADIENT */}
             <div style={{
-                background: "linear-gradient(135deg, #ffc3a0 0%, #ffafbd 35%, #c3aed6 65%, #b4d4ff 100%)",
+                background: "var(--hero-bg, linear-gradient(135deg, #ffc3a0 0%, #ffafbd 35%, #c3aed6 65%, #b4d4ff 100%))",
                 padding: "32px 24px 40px",
                 borderRadius: "0 0 40px 40px",
                 marginBottom: 28,
                 position: "relative",
                 overflow: "hidden",
-                boxShadow: "0 12px 48px rgba(255, 175, 189, 0.2)"
+                boxShadow: "var(--glass-shadow, 0 12px 48px rgba(0, 0, 0, 0.15))"
             }}>
                 {/* Animated background elements */}
                 <div style={{
@@ -253,6 +258,68 @@ export default function HomeScreen({
                             {getGreeting()}, {userName}! ✨
                         </p>
                     </div>
+
+                    {/* QUICK THEME SWITCHER STRIP */}
+                    {setTheme && (
+                        <div style={{
+                            marginTop: 14,
+                            background: "rgba(0, 0, 0, 0.2)",
+                            backdropFilter: "blur(20px)",
+                            borderRadius: 24,
+                            padding: "6px 12px",
+                            border: "1px solid rgba(255, 255, 255, 0.25)",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            maxWidth: "92%",
+                            overflowX: "auto",
+                            boxShadow: "0 6px 20px rgba(0, 0, 0, 0.12)",
+                            scrollbarWidth: "none"
+                        }}>
+                            <span style={{ fontSize: 13, marginRight: 2 }} title="Quick Themes">🎨</span>
+                            {[
+                                { id: "pastel", icon: "🌸", name: "Pastel" },
+                                { id: "oled", icon: "🌑", name: "OLED" },
+                                { id: "midnight", icon: "🌙", name: "Midnight" },
+                                { id: "cyberpunk", icon: "⚡", name: "Cyber" },
+                                { id: "sunset", icon: "🌅", name: "Sunset" },
+                                { id: "ocean", icon: "🌊", name: "Ocean" },
+                                { id: "forest", icon: "🌿", name: "Zen" },
+                                { id: "coffee", icon: "☕", name: "Coffee" },
+                            ].map(th => {
+                                const active = theme === th.id || (th.id === "sunset" && theme === "aurora");
+                                return (
+                                    <button
+                                        key={th.id}
+                                        onClick={() => {
+                                            setTheme(th.id);
+                                            if (showToast) showToast(`Theme: ${th.icon} ${th.name}`);
+                                        }}
+                                        title={`Switch to ${th.name} theme`}
+                                        style={{
+                                            padding: "4px 8px",
+                                            borderRadius: 12,
+                                            background: active ? "rgba(255, 255, 255, 0.35)" : "rgba(255, 255, 255, 0.12)",
+                                            border: active ? "1.5px solid #ffffff" : "1px solid transparent",
+                                            color: "#ffffff",
+                                            fontSize: 12,
+                                            fontWeight: 700,
+                                            cursor: "pointer",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            gap: 4,
+                                            whiteSpace: "nowrap",
+                                            transform: active ? "scale(1.05)" : "scale(1)",
+                                            transition: "all 0.2s ease"
+                                        }}
+                                    >
+                                        <span>{th.icon}</span>
+                                        <span style={{ fontSize: 11 }}>{th.name}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
             </div>
 

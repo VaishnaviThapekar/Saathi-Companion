@@ -286,6 +286,7 @@ export default function App() {
   const [lastSavedAt, setLastSavedAt] = useState(null);
   const [activeTaskAlarm, setActiveTaskAlarm] = useState(null);
   const [theme, setTheme] = useState(() => localStorage.getItem("saathi_theme") || "pastel");
+  const [accentColor, setAccentColor] = useState(() => localStorage.getItem("saathi_accent_color") || "coral");
   const [fontScale, setFontScale] = useState(() => localStorage.getItem("saathi_font_scale") || "medium");
   const [uiDensity, setUiDensity] = useState(() => localStorage.getItem("saathi_ui_density") || "comfortable");
   const [lang, setLang] = useState(() => getSavedLanguage());
@@ -365,6 +366,11 @@ export default function App() {
     document.body.setAttribute("data-theme", theme);
     localStorage.setItem("saathi_theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    document.body.setAttribute("data-accent", accentColor);
+    localStorage.setItem("saathi_accent_color", accentColor);
+  }, [accentColor]);
 
   useEffect(() => {
     document.body.setAttribute("data-font-scale", fontScale);
@@ -822,7 +828,7 @@ export default function App() {
   // Authentication check first, then name setup, then main app
 
   const shared = {
-    userName, theme, setTheme, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos,
+    userName, theme, setTheme, accentColor, setAccentColor, tasks, setTasks, habits, setHabits, notes, setNotes, photos, setPhotos,
     meaningfulMoments, setMeaningfulMoments, chatMsgs, setChatMsgs, dailyCheckIn, setDailyCheckIn, lastCheckInDate,
     setLastCheckInDate, dailyNotes, setDailyNotes, voiceNotes, setVoiceNotes, gratitude, setGratitude, energyLog,
     setEnergyLog, moodLog, setMoodLog, affirmations, setAffirmations, generateAffirmation, weeklyReflection,
@@ -1195,6 +1201,8 @@ function SettingsScreen({
   userName,
   theme,
   setTheme,
+  accentColor = "coral",
+  setAccentColor,
   tasks,
   setTasks,
   habits,
@@ -1697,39 +1705,169 @@ function SettingsScreen({
         </div>
       </div>
 
-      {/* COLOR THEME SELECTION CARD */}
-      <div className="glass" style={{ borderRadius: 16, padding: 16, marginBottom: 16 }}>
-        <p style={{ fontSize: 14, color: "#5a4a42", fontWeight: 600, marginBottom: 4 }}>Color Theme & Appearance 🎨</p>
-        <p style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.6)", marginBottom: 12 }}>Personalize Saathi's visual palette to match your mood.</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+      {/* THEME & ACCENT CUSTOMIZER STUDIO */}
+      <div className="glass" style={{ borderRadius: 18, padding: 18, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 20 }}>🎨</span>
+            <p style={{ fontSize: 15, color: "var(--card-text, #5a4a42)", fontWeight: 700, margin: 0 }}>Theme & Aesthetic Studio</p>
+          </div>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: "var(--accent-gradient)", color: "#fff", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+            8 Presets
+          </span>
+        </div>
+        <p style={{ fontSize: 12, color: "var(--text-muted, rgba(139, 126, 116, 0.7))", marginBottom: 14 }}>
+          Personalize Saathi's visual ambiance with OLED dark mode, vibrant sunsets, and glowing accents.
+        </p>
+
+        {/* 8 THEME PRESETS */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginBottom: 18 }}>
           {[
-            { id: "pastel", name: "🌸 Pastel Bloom", bg: "linear-gradient(135deg, #ff9a76, #ff6b81)", text: "#fff" },
-            { id: "ocean", name: "🌊 Ocean Serenity", bg: "linear-gradient(135deg, #00c9a7, #00878a)", text: "#fff" },
-            { id: "forest", name: "🌿 Emerald Forest", bg: "linear-gradient(135deg, #00b894, #55efc4)", text: "#fff" },
-            { id: "midnight", name: "🌙 Royal Midnight", bg: "linear-gradient(135deg, #e056fd, #686de0)", text: "#fff" },
-            { id: "aurora", name: "🌅 Sunset Aurora", bg: "linear-gradient(135deg, #f0932b, #eb4d4b, #6c5ce7)", text: "#fff" },
-          ].map(th => (
-            <button
-              key={th.id}
-              onClick={() => setTheme(th.id)}
-              style={{
-                padding: "12px 10px",
-                borderRadius: 12,
-                background: th.bg,
-                border: theme === th.id ? "2.5px solid #ffffff" : "1px solid rgba(255, 255, 255, 0.3)",
-                color: th.text,
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                textAlign: "center",
-                boxShadow: theme === th.id ? "0 8px 24px rgba(0,0,0,0.25)" : "0 4px 12px rgba(0,0,0,0.08)",
-                transition: "all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                gridColumn: th.id === "aurora" ? "1 / -1" : "auto"
-              }}
-            >
-              {th.name}
-            </button>
-          ))}
+            { id: "pastel", name: "Pastel Bloom", icon: "🌸", desc: "Cozy warm day", bg: "linear-gradient(135deg, #ff9a76, #ff6b81)", mode: "Light" },
+            { id: "oled", name: "OLED Midnight", icon: "🌑", desc: "AMOLED Pure #000", bg: "linear-gradient(135deg, #18181b, #09090b)", mode: "Dark (0% battery)" },
+            { id: "midnight", name: "Deep Midnight", icon: "🌙", desc: "Galactic purple", bg: "linear-gradient(135deg, #3b0764, #581c87)", mode: "Dark" },
+            { id: "cyberpunk", name: "Cyberpunk Mint", icon: "⚡", desc: "Neon cyan & dark teal", bg: "linear-gradient(135deg, #083344, #0e7490)", mode: "Dark" },
+            { id: "sunset", name: "Sunset Glow", icon: "🌅", desc: "Golden dusk amber", bg: "linear-gradient(135deg, #f97316, #f43f5e)", mode: "Vibrant" },
+            { id: "ocean", name: "Ocean Serenity", icon: "🌊", desc: "Calm tropical tides", bg: "linear-gradient(135deg, #00c9a7, #00878a)", mode: "Refreshing" },
+            { id: "forest", name: "Emerald Zen", icon: "🌿", desc: "Botanical clarity", bg: "linear-gradient(135deg, #059669, #10b981)", mode: "Earth" },
+            { id: "coffee", name: "Warm Coffee", icon: "☕", desc: "Roasted cozy tones", bg: "linear-gradient(135deg, #9c6644, #7f5539)", mode: "Warm" },
+          ].map(th => {
+            const isSelected = theme === th.id || (th.id === "sunset" && theme === "aurora");
+            return (
+              <button
+                key={th.id}
+                onClick={() => setTheme(th.id)}
+                style={{
+                  padding: "12px 10px",
+                  borderRadius: 14,
+                  background: th.bg,
+                  border: isSelected ? "2.5px solid #ffffff" : "1px solid rgba(255, 255, 255, 0.25)",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  boxShadow: isSelected ? "0 8px 24px rgba(0,0,0,0.35), 0 0 12px rgba(255,255,255,0.4)" : "0 4px 12px rgba(0,0,0,0.08)",
+                  transform: isSelected ? "scale(1.02)" : "scale(1)",
+                  transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                  position: "relative",
+                  overflow: "hidden"
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <span style={{ fontSize: 18 }}>{th.icon}</span>
+                  {isSelected && (
+                    <span style={{ fontSize: 10, background: "rgba(255,255,255,0.3)", borderRadius: 10, padding: "2px 6px", fontWeight: 800 }}>
+                      ✓ Active
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: 13, fontWeight: 700, margin: "0 0 2px 0", color: "#ffffff", letterSpacing: "0.2px" }}>
+                  {th.name}
+                </p>
+                <p style={{ fontSize: 10, margin: 0, opacity: 0.85, color: "#ffffff" }}>
+                  {th.desc}
+                </p>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ACCENT COLOR PALETTE SELECTOR */}
+        <div style={{ padding: "14px 12px", borderRadius: 14, background: "rgba(0, 0, 0, 0.04)", border: "1px solid var(--glass-border)", marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--card-text, #5a4a42)", margin: 0 }}>
+                Accent Glow Palette ✨
+              </p>
+              <p style={{ fontSize: 11, color: "var(--text-muted, rgba(139, 126, 116, 0.7))", margin: "2px 0 0 0" }}>
+                Select button highlights, badges, and glow accents
+              </p>
+            </div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-primary, #ff9a76)", textTransform: "capitalize" }}>
+              {accentColor}
+            </span>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, justifyContent: "space-between", flexWrap: "wrap", alignItems: "center" }}>
+            {[
+              { id: "coral", name: "Coral Pink", color: "#ff9a76", gradient: "linear-gradient(135deg, #ff9a76, #ff6b81)" },
+              { id: "cyan", name: "Cyber Cyan", color: "#00f2fe", gradient: "linear-gradient(135deg, #00f2fe, #4facfe)" },
+              { id: "mint", name: "Fresh Mint", color: "#10b981", gradient: "linear-gradient(135deg, #10b981, #34d399)" },
+              { id: "violet", name: "Royal Violet", color: "#a855f7", gradient: "linear-gradient(135deg, #a855f7, #6366f1)" },
+              { id: "amber", name: "Warm Amber", color: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #fbbf24)" },
+              { id: "ruby", name: "Radiant Ruby", color: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #f87171)" },
+              { id: "sapphire", name: "Deep Sapphire", color: "#3b82f6", gradient: "linear-gradient(135deg, #3b82f6, #60a5fa)" },
+            ].map(ac => {
+              const isSelected = accentColor === ac.id;
+              return (
+                <button
+                  key={ac.id}
+                  onClick={() => setAccentColor(ac.id)}
+                  title={ac.name}
+                  style={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "50%",
+                    background: ac.gradient,
+                    border: isSelected ? "3px solid #ffffff" : "2px solid rgba(255, 255, 255, 0.4)",
+                    boxShadow: isSelected ? `0 0 16px ${ac.color}, 0 4px 10px rgba(0,0,0,0.25)` : "0 2px 6px rgba(0,0,0,0.1)",
+                    transform: isSelected ? "scale(1.15)" : "scale(1)",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#ffffff",
+                    fontSize: 14,
+                    fontWeight: 800,
+                    transition: "all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)"
+                  }}
+                >
+                  {isSelected ? "✓" : ""}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* LIVE AESTHETIC PREVIEW CARD */}
+        <div style={{
+          padding: 14,
+          borderRadius: 14,
+          background: "var(--glass-bg)",
+          border: "1px solid var(--glass-border)",
+          boxShadow: "var(--glass-shadow)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12
+        }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-primary, #ff9a76)", display: "inline-block" }}></span>
+              <p style={{ fontSize: 13, fontWeight: 700, color: "var(--card-text, #5a4a42)", margin: 0 }}>
+                Live Theme Preview
+              </p>
+            </div>
+            <p style={{ fontSize: 11, color: "var(--text-muted, rgba(139, 126, 116, 0.7))", margin: 0 }}>
+              Theme: <strong style={{ textTransform: "capitalize", color: "var(--card-text, #5a4a42)" }}>{theme}</strong> • Accent: <strong style={{ textTransform: "capitalize", color: "var(--accent-primary, #ff9a76)" }}>{accentColor}</strong>
+            </p>
+          </div>
+          <button
+            onClick={() => showToast && showToast("✨ Theme & accent applied perfectly!")}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 10,
+              background: "var(--accent-gradient)",
+              border: "none",
+              color: "#ffffff",
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: "pointer",
+              boxShadow: "var(--glow-shadow)",
+              whiteSpace: "nowrap"
+            }}
+          >
+            Test Glow 💫
+          </button>
         </div>
       </div>
 
