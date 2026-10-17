@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { playMoodLog, playAlarmSound, ALARM_SOUND_TYPES } from "../../services/soundService";
 import { InteractiveMoodHabitAnalytics } from "../../App";
+import { QuickFocusLauncherCard } from "../common/PomodoroFocusTimer";
 
 // Helper functions - these should match what's in your App.js
 const todayKey = () => {
@@ -23,6 +24,7 @@ export default function HomeScreen({
     accentColor = "coral",
     setAccentColor,
     showToast,
+    onOpenFocus,
     tasks,
     habits,
     setHabits,
@@ -472,6 +474,9 @@ export default function HomeScreen({
                     </div>
                 </div>
             </div>
+
+            {/* POMODORO FOCUS STUDIO QUICK LAUNCHER */}
+            <QuickFocusLauncherCard onOpenFocus={onOpenFocus} />
 
             {/* DAILY CHECK-IN PROMPT */}
             {needsCheckIn && !showCheckIn && (

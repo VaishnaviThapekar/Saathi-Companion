@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import HomeScreen from "./components/screens/HomeScreen";
 import LoginScreen from "./components/screens/LoginScreen";
+import PomodoroFocusTimer from "./components/common/PomodoroFocusTimer";
 import { isAuthenticated, logout, getPinLockoutStatus, recordFailedPinAttempt, clearPinLockout } from "./utils/auth";
 import { detectActionableSuggestions, CRISIS_HELPLINES } from "./utils/ai";
 import { getStorageQuota, exportDataAsMarkdown, exportDataAsPDF } from "./utils/storage";
@@ -331,7 +332,14 @@ export default function App() {
   const [ambientVol, setAmbientVol] = useState(0.3);
   const [notifPermission, setNotifPermission] = useState(getNotificationPermission());
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showFocusModal, setShowFocusModal] = useState(false);
+  const [focusInitialTaskId, setFocusInitialTaskId] = useState("");
   const [confetti, setConfetti] = useState([]);
+
+  const handleOpenFocus = (taskId = "") => {
+    setFocusInitialTaskId(taskId);
+    setShowFocusModal(true);
+  };
 
   const triggerConfetti = () => {
     const colors = ["#ffc3a0", "#ffafbd", "#a8e6cf", "#dcedc1", "#ffd3b6", "#c3aed6", "#ff9a76"];
@@ -841,7 +849,8 @@ export default function App() {
     triggerConfetti,
     customAudioTracks, handleUploadCustomTrack, handleDeleteCustomTrack, handleTogglePlayCustomTrack, playingCustomTrackId,
     ttsOn, handleToggleTTS, handleExportWeeklyPDF, speakText, stopSpeech,
-    lang, handleSetLang, morningAlarm, handleSetMorningAlarm, eveningAlarm, handleSetEveningAlarm, cloudSyncConfig, handleSaveCloudSyncConfig, handleTriggerCloudSync, t
+    lang, handleSetLang, morningAlarm, handleSetMorningAlarm, eveningAlarm, handleSetEveningAlarm, cloudSyncConfig, handleSaveCloudSyncConfig, handleTriggerCloudSync, t,
+    showFocusModal, setShowFocusModal, onOpenFocus: handleOpenFocus
   };
 
   const screens = {
@@ -1014,6 +1023,15 @@ export default function App() {
             </div>
           )}
           <div key={tab} className="page-spring screen-tab-content" style={{ paddingBottom: 90, position: "relative", zIndex: 1 }}>{screens[tab]}</div>
+          <PomodoroFocusTimer
+            isOpen={showFocusModal}
+            onClose={() => setShowFocusModal(false)}
+            tasks={tasks}
+            setTasks={setTasks}
+            showToast={showToast}
+            accentColor={accentColor}
+            initialTaskId={focusInitialTaskId}
+          />
           <BottomNav tab={tab} setTab={setTab} onLogout={() => { logout(); setAuthenticated(false); }} />
         </div>
       )}
@@ -2196,7 +2214,7 @@ function SettingsScreen({
 // ═══════════════════════════════════════════════════════════════════════
 // TASKS SCREEN
 // ═══════════════════════════════════════════════════════════════════════
-function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti }) {
+function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti, onOpenFocus }) {
   const [showForm, setShowForm] = useState(false);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterDomain, setFilterDomain] = useState("all");
@@ -2277,11 +2295,11 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
     <div style={{ padding: "0 0 90px 0", position: "relative" }}>
       {/* HERO TOP BANNER (MATCHES HOME SCREEN) */}
       <div style={{
-        background: "linear-gradient(135deg, #ffc3a0 0%, #ffafbd 50%, #c3aed6 100%)",
+        background: "var(--hero-bg, linear-gradient(135deg, #ffc3a0 0%, #ffafbd 50%, #c3aed6 100%))",
         padding: "32px 24px 36px",
         borderRadius: "0 0 36px 36px",
         marginBottom: 24,
-        boxShadow: "0 12px 40px rgba(255, 175, 189, 0.22)"
+        boxShadow: "var(--glass-shadow, 0 12px 40px rgba(0, 0, 0, 0.15))"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -2292,9 +2310,33 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
               {completedTasks} of {totalTasks} completed today
             </p>
           </div>
-          <button onClick={() => setShowForm(!showForm)} style={{ width: 44, height: 44, borderRadius: 22, background: "rgba(255, 255, 255, 0.95)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 6px 16px rgba(0,0,0,0.1)" }}>
-            <Icon name="plus" size={22} color="#ff9a76" sw={2.5} />
-          </button>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <button
+              onClick={() => onOpenFocus && onOpenFocus()}
+              title="Open Pomodoro Focus Timer"
+              style={{
+                height: 42,
+                padding: "0 14px",
+                borderRadius: 21,
+                background: "rgba(255, 255, 255, 0.95)",
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                cursor: "pointer",
+                boxShadow: "0 6px 16px rgba(0,0,0,0.1)",
+                color: "var(--accent-primary, #ff9a76)",
+                fontWeight: 700,
+                fontSize: 13
+              }}
+            >
+              <span>🍅</span>
+              <span>Focus</span>
+            </button>
+            <button onClick={() => setShowForm(!showForm)} style={{ width: 42, height: 42, borderRadius: 21, background: "rgba(255, 255, 255, 0.95)", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 6px 16px rgba(0,0,0,0.1)" }}>
+              <Icon name="plus" size={22} color="var(--accent-primary, #ff9a76)" sw={2.5} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -2455,6 +2497,30 @@ function TasksScreen({ tasks, setTasks, onTaskAdded, showToast, triggerConfetti 
                   </div>
                   {(t.dueDate || t.dueTime) && <p style={{ color: isOverdue(t) ? "#ff9a76" : "rgba(139, 126, 116, 0.4)", fontSize: 11, marginTop: 2 }}>{isOverdue(t) ? "⚠ " : ""}Due {fmtDate(t.dueDate)}{t.dueTime ? ` at ${fmtTime(`${t.dueDate}T${t.dueTime}`)}` : ""}</p>}
                 </div>
+
+                {!t.done && (
+                  <button
+                    onClick={() => onOpenFocus && onOpenFocus(t.id)}
+                    title="Focus on this task with Pomodoro Timer"
+                    style={{
+                      background: "rgba(255, 154, 118, 0.12)",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--accent-primary, #ff9a76)",
+                      padding: "4px 8px",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 3,
+                      flexShrink: 0
+                    }}
+                  >
+                    <span>🍅</span>
+                    <span>Focus</span>
+                  </button>
+                )}
 
                 <button onClick={() => deleteTask(t)} style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(139, 126, 116, 0.25)", padding: 4 }}>
                   <Icon name="trash" size={16} />

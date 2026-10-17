@@ -72,6 +72,13 @@ export const playStreakUnlock = () => {
   setTimeout(() => playChimeSound(1046.50, 0.8, 0.3), 180); // C6 victory
 };
 
+export const playFocusCompleteChime = () => {
+  if (!isSoundEnabled()) return;
+  playChimeSound(587.33, 0.4, 0.22); // D5
+  setTimeout(() => playChimeSound(880.00, 0.5, 0.28), 160); // A5
+  setTimeout(() => playChimeSound(1174.66, 1.2, 0.32), 340); // D6 victory
+};
+
 export const playTabSwitch = () => {
   if (!isSoundEnabled()) return;
   try {
@@ -260,6 +267,82 @@ export const startAmbientSound = (type = 'rain', volume = 0.3) => {
       osc1.start();
       osc2.start();
       activeAmbientNodes = [osc1, osc2, subGain];
+    } else if (type === 'alpha' || type === 'binaural_alpha') {
+      // 10Hz Alpha Binaural Beats (Relaxed Flow & Effortless Concentration)
+      const oscL = ctx.createOscillator();
+      const oscR = ctx.createOscillator();
+      oscL.type = 'sine';
+      oscR.type = 'sine';
+      oscL.frequency.setValueAtTime(200, ctx.currentTime);
+      oscR.frequency.setValueAtTime(210, ctx.currentTime);
+
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.12, ctx.currentTime);
+
+      if (ctx.createChannelMerger) {
+        const merger = ctx.createChannelMerger(2);
+        oscL.connect(merger, 0, 0);
+        oscR.connect(merger, 0, 1);
+        merger.connect(subGain);
+      } else {
+        oscL.connect(subGain);
+        oscR.connect(subGain);
+      }
+      subGain.connect(ambientMasterGain);
+      oscL.start();
+      oscR.start();
+      activeAmbientNodes = [oscL, oscR, subGain];
+    } else if (type === 'beta' || type === 'binaural_beta') {
+      // 18Hz Beta Binaural Beats (High Alertness & Analytical Problem Solving)
+      const oscL = ctx.createOscillator();
+      const oscR = ctx.createOscillator();
+      oscL.type = 'sine';
+      oscR.type = 'sine';
+      oscL.frequency.setValueAtTime(240, ctx.currentTime);
+      oscR.frequency.setValueAtTime(258, ctx.currentTime);
+
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.10, ctx.currentTime);
+
+      if (ctx.createChannelMerger) {
+        const merger = ctx.createChannelMerger(2);
+        oscL.connect(merger, 0, 0);
+        oscR.connect(merger, 0, 1);
+        merger.connect(subGain);
+      } else {
+        oscL.connect(subGain);
+        oscR.connect(subGain);
+      }
+      subGain.connect(ambientMasterGain);
+      oscL.start();
+      oscR.start();
+      activeAmbientNodes = [oscL, oscR, subGain];
+    } else if (type === 'lofi') {
+      // Warm lo-fi noise with soft low-pass filter and warm bass drone
+      const noiseBuffer = createNoiseBuffer(ctx);
+      const noiseSource = ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(350, ctx.currentTime);
+
+      const drone = ctx.createOscillator();
+      drone.type = 'triangle';
+      drone.frequency.setValueAtTime(110, ctx.currentTime); // A2 warm root
+
+      const droneGain = ctx.createGain();
+      droneGain.gain.setValueAtTime(0.04, ctx.currentTime);
+      drone.connect(droneGain);
+
+      noiseSource.connect(filter);
+      filter.connect(ambientMasterGain);
+      droneGain.connect(ambientMasterGain);
+
+      noiseSource.start();
+      drone.start();
+      activeAmbientNodes = [noiseSource, filter, drone, droneGain];
     }
 
     currentAmbientType = type;
