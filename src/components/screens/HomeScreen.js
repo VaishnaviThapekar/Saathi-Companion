@@ -2,6 +2,7 @@ import { useState } from "react";
 import { playMoodLog, playAlarmSound, ALARM_SOUND_TYPES } from "../../services/soundService";
 import { InteractiveMoodHabitAnalytics } from "../../App";
 import { QuickFocusLauncherCard } from "../common/PomodoroFocusTimer";
+import { QuickGuidedJournalLauncherCard } from "../common/GuidedJournalingStudio";
 
 // Helper functions - these should match what's in your App.js
 const todayKey = () => {
@@ -477,6 +478,11 @@ export default function HomeScreen({
 
             {/* POMODORO FOCUS STUDIO QUICK LAUNCHER */}
             <QuickFocusLauncherCard onOpenFocus={onOpenFocus} />
+
+            {/* GUIDED JOURNALING & AI COACH LAUNCHER */}
+            <div style={{ padding: "0 20px" }}>
+                <QuickGuidedJournalLauncherCard onOpenJournalStudio={() => setTab("notes")} />
+            </div>
 
             {/* DAILY CHECK-IN PROMPT */}
             {needsCheckIn && !showCheckIn && (

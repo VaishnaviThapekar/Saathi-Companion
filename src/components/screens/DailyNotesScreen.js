@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import Icon from "../common/Icon";
+import GuidedJournalingStudio, { QuickGuidedJournalLauncherCard } from "../common/GuidedJournalingStudio";
 
-
-
-export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
+export default function DailyNotesScreen({ dailyNotes, setDailyNotes, userName = "friend", showToast }) {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [noteText, setNoteText] = useState("");
+    const [showGuidedStudio, setShowGuidedStudio] = useState(false);
 
     // Helper to get date key (YYYY-MM-DD)
     const dateKey = (date) => {
@@ -62,6 +62,10 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
 
             return updated;
         });
+    };
+
+    const handleSaveGuidedEntry = (entryText) => {
+        setNoteText(prev => (prev && prev.trim() ? `${prev.trim()}\n\n${entryText}` : entryText));
     };
 
     // Auto-save typing changes automatically to permanent local storage
@@ -339,6 +343,9 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                 </div>
             </div>
 
+            {/* GUIDED JOURNALING & AI COACH LAUNCHER CARD */}
+            <QuickGuidedJournalLauncherCard onOpenJournalStudio={() => setShowGuidedStudio(true)} />
+
             {/* Note Editor */}
             <div className="glass" style={{ borderRadius: 16, padding: 16 }}>
                 <div style={{
@@ -372,6 +379,25 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
 
                 {/* Quick Tag Pills & Inspiration Prompt Generator */}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12 }}>
+                    <button
+                        onClick={() => setShowGuidedStudio(true)}
+                        style={{
+                            padding: "4px 10px",
+                            borderRadius: 14,
+                            background: "linear-gradient(135deg, #a855f7, #ec4899)",
+                            border: "none",
+                            color: "#fff",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            boxShadow: "0 2px 8px rgba(168, 85, 247, 0.25)"
+                        }}
+                    >
+                        ✨ CBT & Stoic Prompts
+                    </button>
                     <button
                         onClick={() => {
                             const prompts = [
@@ -566,6 +592,16 @@ export default function DailyNotesScreen({ dailyNotes, setDailyNotes }) {
                     }).length}</strong> written this month
                 </p>
             </div>
+
+            {/* GUIDED JOURNALING & AI COACH MODAL STUDIO */}
+            <GuidedJournalingStudio
+                isOpen={showGuidedStudio}
+                onClose={() => setShowGuidedStudio(false)}
+                onSaveToJournal={handleSaveGuidedEntry}
+                userName={userName}
+                dateStr={dateKey(selectedDate)}
+                showToast={showToast}
+            />
         </div>
     </div>
     );

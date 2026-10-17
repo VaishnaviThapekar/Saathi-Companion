@@ -859,7 +859,7 @@ export default function App() {
     habits: <HabitsScreen {...shared} />,
     wellness: <WellnessScreen {...shared} />,
     memories: <MemoriesScreen {...shared} />,
-    notes: <DailyNotesScreen dailyNotes={dailyNotes} setDailyNotes={setDailyNotes} />,
+    notes: <DailyNotesScreen {...shared} />,
     heart: <MeaningfulMomentsScreen {...shared} />,
     chat: <ChatScreen {...shared} />,
     settings: <SettingsScreen {...shared} />,

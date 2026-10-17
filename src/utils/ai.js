@@ -219,3 +219,96 @@ export const chatWithMemory = async (messages, userName, meaningfulMoments) => {
   const lastMsg = messages[messages.length - 1]?.content || "";
   return getLocalChatReply({ userName, meaningfulMoments, message: lastMsg });
 };
+
+// ═══════════════════════════════════════════════════════════════════════
+// AI REFLECTION COACH & COGNITIVE DISTORTION ANALYZER
+// ═══════════════════════════════════════════════════════════════════════
+export const analyzeJournalReflection = ({ text = "", templateId = "free", userName = "friend" }) => {
+  const norm = (text || "").toLowerCase();
+
+  // 1. Detect Cognitive Distortions
+  const distortions = [];
+  if (/\b(always|never|completely|total failure|ruined|impossible|everything goes wrong)\b/i.test(norm)) {
+    distortions.push({
+      type: "All-or-Nothing Thinking",
+      icon: "⚖️",
+      tip: "You might be seeing things in black-and-white. Real progress is found in the nuanced, messy middle."
+    });
+  }
+  if (/\b(worst|disaster|catastrophe|hopeless|end of the world|can't survive this)\b/i.test(norm)) {
+    distortions.push({
+      type: "Catastrophizing",
+      icon: "🌪️",
+      tip: "Notice the urge to anticipate the absolute worst outcome. Ask yourself: 'What is the most likely realistic outcome?'"
+    });
+  }
+  if (/\b(should have|ought to|must be|i have to be perfect|i should be better)\b/i.test(norm)) {
+    distortions.push({
+      type: "'Should' Statements",
+      icon: "🎯",
+      tip: "'Shoulds' create unnecessary pressure and guilt. Try replacing 'I should' with 'I choose to' or 'It's okay that I did my best.'"
+    });
+  }
+  if (/\b(they hate me|everyone thinks|they probably think|judging me|nobody cares)\b/i.test(norm)) {
+    distortions.push({
+      type: "Mind Reading",
+      icon: "🔮",
+      tip: "We often assume others are thinking critically of us, when they are usually absorbed in their own worries."
+    });
+  }
+  if (/\b(my fault|i ruined it|i'm to blame|all on me)\b/i.test(norm)) {
+    distortions.push({
+      type: "Personalization",
+      icon: "🛡️",
+      tip: "Remember that complex situations have many factors outside your control. Be kind to yourself."
+    });
+  }
+
+  // 2. Emotional Tone
+  let tone = { label: "Reflective & Balanced", icon: "🌱", color: "#10b981" };
+  if (/(anx|panic|worry|stress|fear|nervous|dread)/i.test(norm)) {
+    tone = { label: "Anxious & Processing", icon: "🌊", color: "#f59e0b" };
+  } else if (/(grat|thank|blessed|warm|appreciat|love|smile)/i.test(norm)) {
+    tone = { label: "Grateful & Grounded", icon: "🌸", color: "#ec4899" };
+  } else if (/(tired|exhaust|heavy|sad|lonely|hurt|cry|burnout)/i.test(norm)) {
+    tone = { label: "Vulnerable & Seeking Rest", icon: "🤍", color: "#6366f1" };
+  } else if (/(win|proud|achiev|excit|goal|focus|energy|ready)/i.test(norm)) {
+    tone = { label: "Empowered & Driven", icon: "⚡", color: "#06b6d4" };
+  }
+
+  // 3. Personalized Empathetic Synthesis
+  let insight = "";
+  if (templateId === "cbt") {
+    insight = `Thank you for taking the brave step to untangle these anxious thoughts, ${userName}. By putting them down on paper, you've already created healthy distance between yourself and the worry. Remember: your anxious thoughts are hypotheses, not facts. Giving yourself permission to look for balanced evidence is an act of real self-compassion.`;
+  } else if (templateId === "stoic") {
+    insight = `Marcus Aurelius wrote that we suffer more often in imagination than in reality. Examining your day with honesty and grace—separating what was under your direct control from what was external—is true Stoic mastery, ${userName}. Carry this inner equanimity forward.`;
+  } else if (templateId === "gratitude") {
+    insight = `Savoring these positive micro-moments physically rewires your neural pathways toward safety and fulfillment. Noticing the small warmth, ${userName}, makes the heavy parts of life much lighter to hold.`;
+  } else if (templateId === "clarity") {
+    insight = `Clear intentions create calm execution. By anticipating the hurdles and deciding your anchor in advance, ${userName}, you've turned uncertainty into a navigable plan. Trust your rhythm today.`;
+  } else {
+    insight = `Writing unfiltered thoughts is one of the highest forms of emotional hygiene, ${userName}. Honoring your feelings without judgment gives your mind room to breathe and heal.`;
+  }
+
+  // 4. Actionable Micro-Steps
+  const microActions = [];
+  if (distortions.length > 0) {
+    microActions.push("Take one deep 4-4-6 breath and re-read your compassionate reframe out loud.");
+  } else {
+    microActions.push("Place your hand on your heart for 15 seconds to anchor this clarity.");
+  }
+  microActions.push("Drink a fresh glass of water and acknowledge yourself for making time to journal.");
+
+  const anchorAffirmation = distortions.length > 0
+    ? "I am not my anxious thoughts. I can hold space for uncertainty while choosing peace."
+    : "I honor where I am, I celebrate my small steps, and I trust my journey.";
+
+  return {
+    tone,
+    distortions,
+    insight,
+    microActions,
+    anchorAffirmation
+  };
+};
+
