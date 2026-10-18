@@ -530,3 +530,216 @@ export const playBreathCompleteCelebration = () => {
     });
   } catch (e) {}
 };
+
+// ═══════════════════════════════════════════════════════════════════════
+// FOCUS STUDIO DUAL-LAYER SOUND MIXER (Neural Waves + Atmosphere)
+// ═══════════════════════════════════════════════════════════════════════
+
+let dualMasterGain = null;
+let dualNeuralGain = null;
+let dualAmbientGain = null;
+let dualNeuralNodes = null;
+let dualAmbientNodes = null;
+let currentDualConfig = { neuralType: "none", ambientType: "none" };
+
+export const stopDualFocusAudio = () => {
+  if (dualNeuralNodes) {
+    dualNeuralNodes.forEach(node => {
+      try {
+        if (node.stop) node.stop();
+        if (node.disconnect) node.disconnect();
+      } catch (e) {}
+    });
+    dualNeuralNodes = null;
+  }
+  if (dualAmbientNodes) {
+    dualAmbientNodes.forEach(node => {
+      try {
+        if (node.stop) node.stop();
+        if (node.disconnect) node.disconnect();
+      } catch (e) {}
+    });
+    dualAmbientNodes = null;
+  }
+  if (dualMasterGain) {
+    try { dualMasterGain.disconnect(); } catch (e) {}
+    dualMasterGain = null;
+  }
+  dualNeuralGain = null;
+  dualAmbientGain = null;
+  currentDualConfig = { neuralType: "none", ambientType: "none" };
+};
+
+export const setDualFocusVolumes = ({ neuralVolume, ambientVolume, masterVolume }) => {
+  try {
+    const ctx = getAudioContext();
+    if (dualNeuralGain && neuralVolume !== undefined) {
+      dualNeuralGain.gain.setValueAtTime(Math.max(0, Math.min(1, neuralVolume)), ctx.currentTime);
+    }
+    if (dualAmbientGain && ambientVolume !== undefined) {
+      dualAmbientGain.gain.setValueAtTime(Math.max(0, Math.min(1, ambientVolume)), ctx.currentTime);
+    }
+    if (dualMasterGain && masterVolume !== undefined) {
+      dualMasterGain.gain.setValueAtTime(Math.max(0, Math.min(1, masterVolume)), ctx.currentTime);
+    }
+  } catch (e) {}
+};
+
+export const startDualFocusAudio = ({
+  neuralType = "none",
+  ambientType = "none",
+  neuralVolume = 0.5,
+  ambientVolume = 0.5,
+  masterVolume = 0.4
+}) => {
+  stopDualFocusAudio();
+  stopAmbientSound();
+  stopCustomAudio();
+
+  if (neuralType === "none" && ambientType === "none") return;
+
+  try {
+    const ctx = getAudioContext();
+
+    // Setup Master Gain & Layer Sub-Gains
+    dualMasterGain = ctx.createGain();
+    dualMasterGain.gain.setValueAtTime(masterVolume, ctx.currentTime);
+    dualMasterGain.connect(ctx.destination);
+
+    dualNeuralGain = ctx.createGain();
+    dualNeuralGain.gain.setValueAtTime(neuralVolume, ctx.currentTime);
+    dualNeuralGain.connect(dualMasterGain);
+
+    dualAmbientGain = ctx.createGain();
+    dualAmbientGain.gain.setValueAtTime(ambientVolume, ctx.currentTime);
+    dualAmbientGain.connect(dualMasterGain);
+
+    // Synthesize Neural Frequency Layer
+    if (neuralType !== "none") {
+      let freqL = 200, freqR = 210; // 10Hz Alpha Flow
+      let subVol = 0.14;
+
+      if (neuralType === "beta") {
+        freqL = 240;
+        freqR = 258; // 18Hz Beta
+        subVol = 0.12;
+      } else if (neuralType === "theta") {
+        freqL = 150;
+        freqR = 156; // 6Hz Theta
+        subVol = 0.16;
+      }
+
+      const oscL = ctx.createOscillator();
+      const oscR = ctx.createOscillator();
+      oscL.type = "sine";
+      oscR.type = "sine";
+      oscL.frequency.setValueAtTime(freqL, ctx.currentTime);
+      oscR.frequency.setValueAtTime(freqR, ctx.currentTime);
+
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(subVol, ctx.currentTime);
+
+      if (ctx.createChannelMerger) {
+        const merger = ctx.createChannelMerger(2);
+        oscL.connect(merger, 0, 0);
+        oscR.connect(merger, 0, 1);
+        merger.connect(subGain);
+      } else {
+        oscL.connect(subGain);
+        oscR.connect(subGain);
+      }
+      subGain.connect(dualNeuralGain);
+
+      oscL.start();
+      oscR.start();
+      dualNeuralNodes = [oscL, oscR, subGain];
+    }
+
+    // Synthesize Atmosphere Soundscape Layer
+    if (ambientType !== "none") {
+      if (ambientType === "rain") {
+        const noiseBuffer = createNoiseBuffer(ctx);
+        const source = ctx.createBufferSource();
+        source.buffer = noiseBuffer;
+        source.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(1100, ctx.currentTime);
+
+        source.connect(filter);
+        filter.connect(dualAmbientGain);
+        source.start();
+        dualAmbientNodes = [source, filter];
+      } else if (ambientType === "ocean") {
+        const noiseBuffer = createNoiseBuffer(ctx);
+        const source = ctx.createBufferSource();
+        source.buffer = noiseBuffer;
+        source.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(420, ctx.currentTime);
+
+        const lfo = ctx.createOscillator();
+        lfo.frequency.setValueAtTime(0.12, ctx.currentTime);
+
+        const lfoGain = ctx.createGain();
+        lfoGain.gain.setValueAtTime(320, ctx.currentTime);
+        lfo.connect(lfoGain);
+        lfoGain.connect(filter.frequency);
+
+        source.connect(filter);
+        filter.connect(dualAmbientGain);
+        lfo.start();
+        source.start();
+        dualAmbientNodes = [source, filter, lfo, lfoGain];
+      } else if (ambientType === "lofi") {
+        const noiseBuffer = createNoiseBuffer(ctx);
+        const source = ctx.createBufferSource();
+        source.buffer = noiseBuffer;
+        source.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(320, ctx.currentTime);
+
+        const drone = ctx.createOscillator();
+        drone.type = "triangle";
+        drone.frequency.setValueAtTime(110, ctx.currentTime);
+
+        const droneGain = ctx.createGain();
+        droneGain.gain.setValueAtTime(0.04, ctx.currentTime);
+        drone.connect(droneGain);
+
+        source.connect(filter);
+        filter.connect(dualAmbientGain);
+        droneGain.connect(dualAmbientGain);
+
+        source.start();
+        drone.start();
+        dualAmbientNodes = [source, filter, drone, droneGain];
+      } else if (ambientType === "pink") {
+        const noiseBuffer = createNoiseBuffer(ctx);
+        const source = ctx.createBufferSource();
+        source.buffer = noiseBuffer;
+        source.loop = true;
+
+        const filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(800, ctx.currentTime);
+
+        source.connect(filter);
+        filter.connect(dualAmbientGain);
+        source.start();
+        dualAmbientNodes = [source, filter];
+      }
+    }
+
+    currentDualConfig = { neuralType, ambientType };
+  } catch (err) {
+    console.warn("Could not start dual focus audio:", err);
+  }
+};
+
+export const getCurrentDualConfig = () => currentDualConfig;

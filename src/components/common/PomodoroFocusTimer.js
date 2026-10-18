@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import {
-  startAmbientSound,
-  stopAmbientSound,
-  setAmbientVolume,
   playFocusCompleteChime,
-  playChimeSound
+  playChimeSound,
+  startDualFocusAudio,
+  stopDualFocusAudio,
+  setDualFocusVolumes
 } from "../../services/soundService";
 
 const PRESETS = {
@@ -14,13 +14,28 @@ const PRESETS = {
   custom: { name: "Custom Timer", work: 30, shortBreak: 5, longBreak: 15, icon: "⚙️" },
 };
 
-const SOUNDSCAPES = [
-  { id: "none", name: "Silence", icon: "🔇", desc: "No background audio" },
+const DUAL_SOUND_PRESETS = [
+  { id: "alpha_rain", name: "Deep Flow", icon: "🧘🌧️", neural: "alpha", ambient: "rain", desc: "10Hz Alpha + Gentle Rainfall" },
+  { id: "beta_lofi", name: "High Alert", icon: "⚡☕", neural: "beta", ambient: "lofi", desc: "18Hz Beta + Cozy Lo-Fi Drone" },
+  { id: "theta_ocean", name: "Creative Tide", icon: "🌊✨", neural: "theta", ambient: "ocean", desc: "6Hz Theta + Rhythmic Ocean Waves" },
+  { id: "pure_rain", name: "Pure Rain", icon: "🌧️", neural: "none", ambient: "rain", desc: "Filtered soothing rainfall" },
+  { id: "pure_alpha", name: "Pure Alpha", icon: "🧠", neural: "alpha", ambient: "none", desc: "10Hz Pure binaural wave" },
+  { id: "silence", name: "Silence", icon: "🔇", neural: "none", ambient: "none", desc: "Zero background sound" }
+];
+
+const NEURAL_LAYERS = [
+  { id: "none", name: "None", icon: "🔇", desc: "No neural frequency" },
   { id: "alpha", name: "Alpha 10Hz", icon: "🧘", desc: "Effortless flow state" },
-  { id: "beta", name: "Beta 18Hz", icon: "⚡", desc: "High alert problem solving" },
+  { id: "beta", name: "Beta 18Hz", icon: "⚡", desc: "High alert problem-solving" },
+  { id: "theta", name: "Theta 6Hz", icon: "✨", desc: "Creative intuition & calm" }
+];
+
+const AMBIENT_LAYERS = [
+  { id: "none", name: "None", icon: "🔇", desc: "No ambient noise" },
   { id: "rain", name: "Raindrops", icon: "🌧️", desc: "Soft soothing rainfall" },
-  { id: "ocean", name: "Ocean Tides", icon: "🌊", desc: "Rhythmic calming waves" },
-  { id: "lofi", name: "Warm Lo-Fi", icon: "☕", desc: "Cozy café drone" },
+  { id: "ocean", name: "Ocean Tides", icon: "🌊", desc: "Rhythmic coastal waves" },
+  { id: "lofi", name: "Warm Lo-Fi", icon: "☕", desc: "Cozy acoustic coffeehouse" },
+  { id: "pink", name: "Pink Noise", icon: "💨", desc: "Even soothing sound blanket" }
 ];
 
 export default function PomodoroFocusTimer({
@@ -39,8 +54,21 @@ export default function PomodoroFocusTimer({
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isActive, setIsActive] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState(initialTaskId);
-  const [soundscape, setSoundscape] = useState("none");
-  const [soundVolume, setSoundVolume] = useState(0.35);
+
+  // Dual-Layer Soundscape Mixer state
+  const [activeSoundPreset, setActiveSoundPreset] = useState("alpha_rain");
+  const [neuralType, setNeuralType] = useState("alpha");
+  const [ambientType, setAmbientType] = useState("rain");
+  const [neuralVolume, setNeuralVolume] = useState(0.4);
+  const [ambientVolume, setAmbientVolume] = useState(0.45);
+  const [soundVolume, setSoundVolume] = useState(0.5);
+  const [mixerTab, setMixerTab] = useState("presets"); // "presets" | "mixer"
+
+  // Thought Parking Lot state
+  const [parkedThoughts, setParkedThoughts] = useState([]);
+  const [thoughtInput, setThoughtInput] = useState("");
+  const [showParkingLot, setShowParkingLot] = useState(false);
+
   const [cycleCount, setCycleCount] = useState(0);
   const [isMinimized, setIsMinimized] = useState(false);
   const [completedTaskPrompt, setCompletedTaskPrompt] = useState(null);
@@ -81,7 +109,7 @@ export default function PomodoroFocusTimer({
   // Reset timer on preset or mode change
   const applyPresetAndMode = (newPreset, newMode) => {
     setIsActive(false);
-    stopAmbientSound();
+    stopDualFocusAudio();
     if (newPreset === "custom") {
       setTimeLeft((newMode === "work" ? customWorkMin : customBreakMin) * 60);
     } else {
@@ -102,14 +130,84 @@ export default function PomodoroFocusTimer({
     applyPresetAndMode(preset, newMode);
   };
 
-  // Soundscape management
+  // Dual-Layer Soundscape management
   useEffect(() => {
-    if (isActive && soundscape !== "none") {
-      startAmbientSound(soundscape, soundVolume);
+    if (isActive && (neuralType !== "none" || ambientType !== "none")) {
+      startDualFocusAudio({
+        neuralType,
+        ambientType,
+        neuralVolume,
+        ambientVolume,
+        masterVolume: soundVolume
+      });
     } else {
-      stopAmbientSound();
+      stopDualFocusAudio();
     }
-  }, [isActive, soundscape, soundVolume]);
+  }, [isActive, neuralType, ambientType, neuralVolume, ambientVolume, soundVolume]);
+
+  useEffect(() => {
+    return () => {
+      stopDualFocusAudio();
+    };
+  }, []);
+
+  const handleUpdateVolumes = (newNeuralVol, newAmbientVol, newMasterVol) => {
+    if (newNeuralVol !== undefined) setNeuralVolume(newNeuralVol);
+    if (newAmbientVol !== undefined) setAmbientVolume(newAmbientVol);
+    if (newMasterVol !== undefined) setSoundVolume(newMasterVol);
+    setDualFocusVolumes({
+      neuralVolume: newNeuralVol !== undefined ? newNeuralVol : neuralVolume,
+      ambientVolume: newAmbientVol !== undefined ? newAmbientVol : ambientVolume,
+      masterVolume: newMasterVol !== undefined ? newMasterVol : soundVolume
+    });
+  };
+
+  const handleSelectSoundPreset = (presetObj) => {
+    setActiveSoundPreset(presetObj.id);
+    setNeuralType(presetObj.neural);
+    setAmbientType(presetObj.ambient);
+  };
+
+  // Thought Parking Lot handlers
+  const handleParkThought = (e) => {
+    if (e) e.preventDefault();
+    if (!thoughtInput.trim()) return;
+    const nowTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    const newThought = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      text: thoughtInput.trim(),
+      time: nowTime,
+      converted: false
+    };
+    setParkedThoughts(prev => [newThought, ...prev]);
+    setThoughtInput("");
+    playChimeSound(660, 0.25, 0.2);
+    if (showToast) showToast("Thought parked! Mind cleared. 🧠✨");
+  };
+
+  const handleConvertThoughtToTask = (thought) => {
+    if (setTasks) {
+      setTasks(prev => [
+        ...prev,
+        {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+          title: thought.text,
+          done: false,
+          createdAt: new Date().toISOString()
+        }
+      ]);
+      setParkedThoughts(prev =>
+        prev.map(t => t.id === thought.id ? { ...t, converted: true } : t)
+      );
+      playChimeSound(528, 0.4, 0.2);
+      if (showToast) showToast(`Added "${thought.text.slice(0, 30)}..." to Tasks! 🎯`);
+    }
+  };
+
+  const handleDeleteParkedThought = (id) => {
+    setParkedThoughts(prev => prev.filter(t => t.id !== id));
+  };
+
 
   // Timer Tick
   useEffect(() => {
@@ -134,7 +232,7 @@ export default function PomodoroFocusTimer({
 
   const handleTimerComplete = () => {
     setIsActive(false);
-    stopAmbientSound();
+    stopDualFocusAudio();
     playFocusCompleteChime();
 
     if (mode === "work") {
@@ -184,13 +282,13 @@ export default function PomodoroFocusTimer({
       setIsActive(true);
     } else {
       setIsActive(false);
-      stopAmbientSound();
+      stopDualFocusAudio();
     }
   };
 
   const handleReset = () => {
     setIsActive(false);
-    stopAmbientSound();
+    stopDualFocusAudio();
     applyPresetAndMode(preset, mode);
   };
 
@@ -370,7 +468,7 @@ export default function PomodoroFocusTimer({
                 )}
                 <button
                   onClick={() => {
-                    if (isActive) stopAmbientSound();
+                    if (isActive) stopDualFocusAudio();
                     if (onClose) onClose();
                   }}
                   style={{
@@ -588,6 +686,172 @@ export default function PomodoroFocusTimer({
               </button>
             </div>
 
+            {/* THOUGHT PARKING LOT (DISTRACTION BLOCKER) */}
+            <div style={{ marginBottom: 16 }}>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "8px 12px",
+                  borderRadius: 14,
+                  background: showParkingLot ? "rgba(99, 102, 241, 0.12)" : "rgba(0, 0, 0, 0.04)",
+                  border: showParkingLot ? "1.5px solid rgba(99, 102, 241, 0.3)" : "1px solid var(--glass-border)",
+                  cursor: "pointer",
+                  transition: "all 0.2s ease"
+                }}
+                onClick={() => setShowParkingLot(prev => !prev)}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>🧠</span>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "var(--card-text, #5a4a42)" }}>
+                      Thought Parking Lot
+                    </span>
+                    <span style={{ fontSize: 10, color: "var(--text-muted)", marginLeft: 6 }}>
+                      {parkedThoughts.length > 0 ? `${parkedThoughts.length} parked` : "Park intrusive thoughts"}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  {parkedThoughts.length > 0 && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 800,
+                        padding: "2px 7px",
+                        borderRadius: 10,
+                        background: "rgba(99, 102, 241, 0.2)",
+                        color: "#6366f1"
+                      }}
+                    >
+                      {parkedThoughts.length}
+                    </span>
+                  )}
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                    {showParkingLot ? "▲" : "▼"}
+                  </span>
+                </div>
+              </div>
+
+              {showParkingLot && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    padding: "12px",
+                    borderRadius: 14,
+                    background: "rgba(0, 0, 0, 0.03)",
+                    border: "1px solid var(--glass-border)",
+                    animation: "fadeIn 0.2s ease-out"
+                  }}
+                >
+                  <form onSubmit={handleParkThought} style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Got distracted? Park thought here..."
+                      value={thoughtInput}
+                      onChange={(e) => setThoughtInput(e.target.value)}
+                      style={{
+                        flex: 1,
+                        padding: "8px 12px",
+                        borderRadius: 10,
+                        border: "1px solid var(--input-border, rgba(0,0,0,0.15))",
+                        background: "var(--input-bg, #fff)",
+                        color: "var(--card-text, #5a4a42)",
+                        fontSize: 12,
+                        outline: "none"
+                      }}
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      disabled={!thoughtInput.trim()}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: 10,
+                        background: thoughtInput.trim() ? "var(--accent-gradient)" : "rgba(0, 0, 0, 0.1)",
+                        color: "#fff",
+                        border: "none",
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: thoughtInput.trim() ? "pointer" : "default"
+                      }}
+                    >
+                      + Park
+                    </button>
+                  </form>
+
+                  {parkedThoughts.length === 0 ? (
+                    <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "4px 0 0 2px", fontStyle: "italic" }}>
+                      Clear your mind in 2 seconds and resume flow. Review later or convert to tasks!
+                    </p>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 130, overflowY: "auto", paddingRight: 4 }}>
+                      {parkedThoughts.map(t => (
+                        <div
+                          key={t.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 8,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            background: t.converted ? "rgba(16, 185, 129, 0.1)" : "rgba(255, 255, 255, 0.6)",
+                            border: t.converted ? "1px solid #10b981" : "1px solid rgba(0,0,0,0.06)",
+                            fontSize: 11
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1, overflow: "hidden" }}>
+                            <span style={{ fontSize: 9, color: "var(--text-muted)", fontFamily: "monospace" }}>{t.time}</span>
+                            <span style={{ textDecoration: t.converted ? "line-through" : "none", color: "var(--card-text, #5a4a42)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {t.text}
+                            </span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                            {!t.converted && setTasks && (
+                              <button
+                                type="button"
+                                onClick={() => handleConvertThoughtToTask(t)}
+                                title="Convert to Task"
+                                style={{
+                                  padding: "2px 6px",
+                                  borderRadius: 6,
+                                  background: "rgba(99, 102, 241, 0.15)",
+                                  border: "none",
+                                  color: "#6366f1",
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  cursor: "pointer"
+                                }}
+                              >
+                                🎯 Task
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteParkedThought(t.id)}
+                              title="Dismiss"
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                color: "var(--text-muted)",
+                                fontSize: 11,
+                                cursor: "pointer",
+                                padding: "2px 4px"
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* LINKED TASK SECTION */}
             <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 14, background: "rgba(0, 0, 0, 0.03)", border: "1px solid var(--glass-border)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
@@ -627,72 +891,220 @@ export default function PomodoroFocusTimer({
               </select>
             </div>
 
-            {/* FOCUS SOUNDSCAPES & BINAURAL BEATS */}
+            {/* FOCUS STUDIO DUAL-LAYER SOUND MIXER (Neural Waves + Atmosphere) */}
             <div style={{ marginBottom: 16, padding: "12px 14px", borderRadius: 14, background: "rgba(0, 0, 0, 0.03)", border: "1px solid var(--glass-border)" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: "var(--card-text, #5a4a42)" }}>
-                    🎧 Focus Soundscape & Binaural Beats
+                    🎧 Dual-Layer Focus Audio Studio
                   </span>
                   <p style={{ fontSize: 10, color: "var(--text-muted)", margin: "1px 0 0 0" }}>
-                    Synthesized real-time audio (Zero internet required)
+                    Mix Neural Frequency + Soundscape simultaneously (Zero asset offline Web Audio)
                   </p>
                 </div>
-                {soundscape !== "none" && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-primary)" }}>
+                {(neuralType !== "none" || ambientType !== "none") && (
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 10, background: "rgba(16, 185, 129, 0.15)", color: "#10b981" }}>
                     Active
                   </span>
                 )}
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 8 }}>
-                {SOUNDSCAPES.map(s => {
-                  const isSelected = soundscape === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      onClick={() => setSoundscape(s.id)}
-                      title={s.desc}
-                      style={{
-                        padding: "6px 4px",
-                        borderRadius: 10,
-                        background: isSelected ? "var(--accent-gradient)" : "rgba(0, 0, 0, 0.04)",
-                        border: isSelected ? "1.5px solid #fff" : "1px solid transparent",
-                        color: isSelected ? "#fff" : "var(--card-text, #5a4a42)",
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        display: "flex",
-                        flexDirection: "column",
-                        alignItems: "center",
-                        gap: 2,
-                        transition: "all 0.2s ease"
-                      }}
-                    >
-                      <span style={{ fontSize: 14 }}>{s.icon}</span>
-                      <span style={{ fontSize: 10 }}>{s.name}</span>
-                    </button>
-                  );
-                })}
+              {/* TABS: 1-Click Presets vs Custom Mixer */}
+              <div style={{ display: "flex", background: "rgba(0, 0, 0, 0.05)", borderRadius: 10, padding: 2, marginBottom: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => setMixerTab("presets")}
+                  style={{
+                    flex: 1,
+                    padding: "5px 8px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: mixerTab === "presets" ? "var(--accent-gradient)" : "transparent",
+                    color: mixerTab === "presets" ? "#fff" : "var(--card-text, #5a4a42)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  ⚡ Dual Presets
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMixerTab("mixer")}
+                  style={{
+                    flex: 1,
+                    padding: "5px 8px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: mixerTab === "mixer" ? "var(--accent-gradient)" : "transparent",
+                    color: mixerTab === "mixer" ? "#fff" : "var(--card-text, #5a4a42)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
+                >
+                  🎛️ Custom Sound Mixer
+                </button>
               </div>
 
-              {soundscape !== "none" && (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                  <span style={{ fontSize: 12 }}>🔊</span>
+              {mixerTab === "presets" ? (
+                /* 1-Click Dual Presets Grid */
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 8 }}>
+                  {DUAL_SOUND_PRESETS.map(p => {
+                    const isSelected = activeSoundPreset === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => handleSelectSoundPreset(p)}
+                        title={p.desc}
+                        style={{
+                          padding: "8px 4px",
+                          borderRadius: 10,
+                          background: isSelected ? "var(--accent-gradient)" : "rgba(0, 0, 0, 0.04)",
+                          border: isSelected ? "1.5px solid #fff" : "1px solid transparent",
+                          color: isSelected ? "#fff" : "var(--card-text, #5a4a42)",
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: "pointer",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: 3,
+                          transition: "all 0.2s ease"
+                        }}
+                      >
+                        <span style={{ fontSize: 16 }}>{p.icon}</span>
+                        <span style={{ fontSize: 10, whiteSpace: "nowrap" }}>{p.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* Custom Dual-Layer Controls */
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 8 }}>
+                  {/* Layer 1: Neural Wave Selector */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--card-text, #5a4a42)", textTransform: "uppercase" }}>
+                        Layer 1: Neural Frequency
+                      </span>
+                      {neuralType !== "none" && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 10 }}>🔊</span>
+                          <input
+                            type="range"
+                            min="0.05"
+                            max="1"
+                            step="0.05"
+                            value={neuralVolume}
+                            onChange={(e) => handleUpdateVolumes(parseFloat(e.target.value), undefined, undefined)}
+                            style={{ width: 60, accentColor: "var(--accent-primary, #ff9a76)" }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 4 }}>
+                      {NEURAL_LAYERS.map(n => {
+                        const isSelected = neuralType === n.id;
+                        return (
+                          <button
+                            key={n.id}
+                            type="button"
+                            onClick={() => {
+                              setNeuralType(n.id);
+                              setActiveSoundPreset("custom");
+                            }}
+                            title={n.desc}
+                            style={{
+                              padding: "5px 2px",
+                              borderRadius: 8,
+                              background: isSelected ? "var(--accent-gradient)" : "rgba(0,0,0,0.04)",
+                              border: isSelected ? "1.5px solid #fff" : "1px solid transparent",
+                              color: isSelected ? "#fff" : "var(--card-text, #5a4a42)",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                          >
+                            <div>{n.icon}</div>
+                            <div style={{ fontSize: 9 }}>{n.name.split(" ")[0]}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Layer 2: Atmosphere Selector */}
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: "var(--card-text, #5a4a42)", textTransform: "uppercase" }}>
+                        Layer 2: Atmosphere Soundscape
+                      </span>
+                      {ambientType !== "none" && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 10 }}>🌧️</span>
+                          <input
+                            type="range"
+                            min="0.05"
+                            max="1"
+                            step="0.05"
+                            value={ambientVolume}
+                            onChange={(e) => handleUpdateVolumes(undefined, parseFloat(e.target.value), undefined)}
+                            style={{ width: 60, accentColor: "var(--accent-primary, #ff9a76)" }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
+                      {AMBIENT_LAYERS.map(a => {
+                        const isSelected = ambientType === a.id;
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => {
+                              setAmbientType(a.id);
+                              setActiveSoundPreset("custom");
+                            }}
+                            title={a.desc}
+                            style={{
+                              padding: "5px 2px",
+                              borderRadius: 8,
+                              background: isSelected ? "var(--accent-gradient)" : "rgba(0,0,0,0.04)",
+                              border: isSelected ? "1.5px solid #fff" : "1px solid transparent",
+                              color: isSelected ? "#fff" : "var(--card-text, #5a4a42)",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                          >
+                            <div>{a.icon}</div>
+                            <div style={{ fontSize: 9 }}>{a.name.split(" ")[0]}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Master Volume Slider */}
+              {(neuralType !== "none" || ambientType !== "none") && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, paddingTop: 6, borderTop: "1px dashed rgba(0,0,0,0.08)" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--card-text, #5a4a42)" }}>Master Volume:</span>
                   <input
                     type="range"
                     min="0.05"
-                    max="0.8"
+                    max="1"
                     step="0.05"
                     value={soundVolume}
-                    onChange={(e) => {
-                      const v = parseFloat(e.target.value);
-                      setSoundVolume(v);
-                      setAmbientVolume(v);
-                    }}
+                    onChange={(e) => handleUpdateVolumes(undefined, undefined, parseFloat(e.target.value))}
                     style={{ flex: 1, accentColor: "var(--accent-primary, #ff9a76)" }}
                   />
-                  <span style={{ fontSize: 10, color: "var(--text-muted)", width: 28 }}>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", width: 28, textAlign: "right" }}>
                     {Math.round(soundVolume * 100)}%
                   </span>
                 </div>
@@ -765,6 +1177,84 @@ export default function PomodoroFocusTimer({
                   >
                     Later
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* PARKED THOUGHTS REVIEW (Post-Session Review & 1-Click Task Conversion) */}
+            {parkedThoughts.some(t => !t.converted) && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "12px 14px",
+                  borderRadius: 14,
+                  background: "rgba(99, 102, 241, 0.1)",
+                  border: "1.5px solid rgba(99, 102, 241, 0.3)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 8
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 12, fontWeight: 800, color: "#6366f1" }}>
+                    🧠 Parked Thoughts ({parkedThoughts.filter(t => !t.converted).length} Unsaved)
+                  </span>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)" }}>
+                    Convert to next actions
+                  </span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 110, overflowY: "auto" }}>
+                  {parkedThoughts.filter(t => !t.converted).map(t => (
+                    <div
+                      key={t.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        padding: "6px 8px",
+                        borderRadius: 8,
+                        background: "rgba(255, 255, 255, 0.7)",
+                        fontSize: 11
+                      }}
+                    >
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, marginRight: 8, color: "var(--card-text, #5a4a42)" }}>
+                        {t.text}
+                      </span>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {setTasks && (
+                          <button
+                            type="button"
+                            onClick={() => handleConvertThoughtToTask(t)}
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: 6,
+                              background: "var(--accent-gradient)",
+                              border: "none",
+                              color: "#fff",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                          >
+                            + To Task
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteParkedThought(t.id)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            color: "var(--text-muted)",
+                            fontSize: 11,
+                            cursor: "pointer"
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
