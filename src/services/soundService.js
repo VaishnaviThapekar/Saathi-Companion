@@ -416,3 +416,117 @@ export const setAmbientVolume = (vol) => {
 
 export const getCurrentAmbientType = () => currentAmbientType;
 
+// ═══════════════════════════════════════════════════════════════════════
+// SOMATIC BREATHWORK PROCEDURAL AUDIO & HAPTIC ENGINE
+// ═══════════════════════════════════════════════════════════════════════
+
+export const triggerHapticPulse = (pattern = [35]) => {
+  try {
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(pattern);
+    }
+  } catch (e) {}
+};
+
+export const playBreathInTone = (duration = 4) => {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    // Gentle melodic rising sweep (220Hz A3 to 330Hz E4)
+    osc.frequency.setValueAtTime(220, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(330, ctx.currentTime + duration);
+
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.12, ctx.currentTime + Math.min(1.2, duration * 0.4));
+    gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch (e) {}
+};
+
+export const playBreathInTopUpTone = () => {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(440, ctx.currentTime); // Crisp A4 tone for top-up inhale
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.14, ctx.currentTime + 0.1);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.8);
+  } catch (e) {}
+};
+
+export const playBreathHoldTone = (duration = 4) => {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle"; // Soft warm drone
+    osc.frequency.setValueAtTime(216, ctx.currentTime); // 432Hz subharmonic for grounding
+
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.07, ctx.currentTime + 0.3);
+    gain.gain.setValueAtTime(0.07, ctx.currentTime + Math.max(0.3, duration - 0.4));
+    gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch (e) {}
+};
+
+export const playBreathOutTone = (duration = 6) => {
+  if (!isSoundEnabled()) return;
+  try {
+    const ctx = getAudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    // Calming descending tone (330Hz down to 196Hz G3)
+    osc.frequency.setValueAtTime(330, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(196, ctx.currentTime + duration);
+
+    gain.gain.setValueAtTime(0.001, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.11, ctx.currentTime + 0.4);
+    gain.gain.linearRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + duration);
+  } catch (e) {}
+};
+
+export const playBreathCompleteCelebration = () => {
+  if (!isSoundEnabled()) return;
+  try {
+    [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+      setTimeout(() => {
+        playChimeSound(freq, 0.9, 0.22);
+      }, idx * 110);
+    });
+  } catch (e) {}
+};

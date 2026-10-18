@@ -3,6 +3,7 @@ import { playMoodLog, playAlarmSound, ALARM_SOUND_TYPES } from "../../services/s
 import { InteractiveMoodHabitAnalytics } from "../../App";
 import { QuickFocusLauncherCard } from "../common/PomodoroFocusTimer";
 import { QuickGuidedJournalLauncherCard } from "../common/GuidedJournalingStudio";
+import { QuickBreathingLauncherCard } from "../common/BreathingStudio";
 
 // Helper functions - these should match what's in your App.js
 const todayKey = () => {
@@ -26,6 +27,7 @@ export default function HomeScreen({
     setAccentColor,
     showToast,
     onOpenFocus,
+    onOpenBreathing,
     tasks,
     habits,
     setHabits,
@@ -478,6 +480,11 @@ export default function HomeScreen({
 
             {/* POMODORO FOCUS STUDIO QUICK LAUNCHER */}
             <QuickFocusLauncherCard onOpenFocus={onOpenFocus} />
+
+            {/* SOMATIC BREATHWORK STUDIO LAUNCHER */}
+            <div style={{ padding: "0 20px" }}>
+                <QuickBreathingLauncherCard onOpenBreathing={onOpenBreathing || (() => setTab("wellness"))} />
+            </div>
 
             {/* GUIDED JOURNALING & AI COACH LAUNCHER */}
             <div style={{ padding: "0 20px" }}>

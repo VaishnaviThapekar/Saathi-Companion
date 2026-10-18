@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import HomeScreen from "./components/screens/HomeScreen";
 import LoginScreen from "./components/screens/LoginScreen";
 import PomodoroFocusTimer from "./components/common/PomodoroFocusTimer";
+import BreathingStudio from "./components/common/BreathingStudio";
 import { isAuthenticated, logout, getPinLockoutStatus, recordFailedPinAttempt, clearPinLockout } from "./utils/auth";
 import { detectActionableSuggestions, CRISIS_HELPLINES } from "./utils/ai";
 import { getStorageQuota, exportDataAsMarkdown, exportDataAsPDF } from "./utils/storage";
@@ -339,6 +340,14 @@ export default function App() {
   const handleOpenFocus = (taskId = "") => {
     setFocusInitialTaskId(taskId);
     setShowFocusModal(true);
+  };
+
+  const [showBreathingModal, setShowBreathingModal] = useState(false);
+  const [breathingPatternId, setBreathingPatternId] = useState("sigh");
+
+  const handleOpenBreathing = (patternId = "sigh") => {
+    setBreathingPatternId(patternId);
+    setShowBreathingModal(true);
   };
 
   const triggerConfetti = () => {
@@ -850,7 +859,8 @@ export default function App() {
     customAudioTracks, handleUploadCustomTrack, handleDeleteCustomTrack, handleTogglePlayCustomTrack, playingCustomTrackId,
     ttsOn, handleToggleTTS, handleExportWeeklyPDF, speakText, stopSpeech,
     lang, handleSetLang, morningAlarm, handleSetMorningAlarm, eveningAlarm, handleSetEveningAlarm, cloudSyncConfig, handleSaveCloudSyncConfig, handleTriggerCloudSync, t,
-    showFocusModal, setShowFocusModal, onOpenFocus: handleOpenFocus
+    showFocusModal, setShowFocusModal, onOpenFocus: handleOpenFocus,
+    showBreathingModal, setShowBreathingModal, onOpenBreathing: handleOpenBreathing
   };
 
   const screens = {
@@ -1032,6 +1042,21 @@ export default function App() {
             accentColor={accentColor}
             initialTaskId={focusInitialTaskId}
           />
+          {showBreathingModal && (
+            <BreathingStudio
+              isModal={true}
+              initialPatternId={breathingPatternId}
+              onClose={() => setShowBreathingModal(false)}
+              onSaveToNotes={({ date, text }) => {
+                setDailyNotes(prev => {
+                  const existing = (prev && prev[date]) || "";
+                  const updated = existing ? `${existing}\n\n${text}` : text;
+                  return { ...prev, [date]: updated };
+                });
+              }}
+              showToast={showToast}
+            />
+          )}
           <BottomNav tab={tab} setTab={setTab} onLogout={() => { logout(); setAuthenticated(false); }} />
         </div>
       )}
@@ -3275,7 +3300,7 @@ function HabitForm({ onAdd }) {
 }
 
 // WELLNESS SCREEN - Features 3, 5, 6, 7, 8, 9
-function WellnessScreen({ tasks = [], habits = [], gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, setMeaningfulMoments, showToast }) {
+function WellnessScreen({ tasks = [], habits = [], gratitude, setGratitude, energyLog, setEnergyLog, moodLog, affirmations, generateAffirmation, voiceNotes, setVoiceNotes, setMeaningfulMoments, showToast, dailyNotes, setDailyNotes }) {
   const [sub, setSub] = useState("breathe");
   const today = todayKey();
 
@@ -3308,7 +3333,7 @@ function WellnessScreen({ tasks = [], habits = [], gratitude, setGratitude, ener
           ))}
         </div>
 
-        {sub === "breathe" && <BreathePanel showToast={showToast} />}
+        {sub === "breathe" && <BreathePanel showToast={showToast} dailyNotes={dailyNotes} setDailyNotes={setDailyNotes} />}
         {sub === "grounding" && <GroundingPanel setMeaningfulMoments={setMeaningfulMoments} showToast={showToast} />}
         {sub === "gratitude" && <GratitudePanel gratitude={gratitude} setGratitude={setGratitude} today={today} />}
         {sub === "energy" && <EnergyPanel energyLog={energyLog} setEnergyLog={setEnergyLog} today={today} />}
@@ -3884,230 +3909,26 @@ function AffirmationsPanel({ affirmations, generateAffirmation }) {
   );
 }
 
-function BreathePanel({ showToast }) {
-  const [pattern, setPattern] = useState("4-4-6");
-  const [phase, setPhase] = useState("idle");
-  const [count, setCount] = useState(0);
-  const [cycles, setCycles] = useState(0);
-  const [targetCycles, setTargetCycles] = useState(5);
-  const intervalRef = useRef(null);
-
-  const patterns = {
-    "4-4-6": { name: "🌬️ Calming 4-4-6", in: 4, hold: 4, out: 6, hold2: 0, desc: "Gentle pulse for stress & anxiety relief" },
-    "4-7-8": { name: "🌙 Sleep 4-7-8", in: 4, hold: 7, out: 8, hold2: 0, desc: "Deep relaxation & nervous system calming" },
-    "4-4-4-4": { name: "📦 Box 4-4-4-4", in: 4, hold: 4, out: 4, hold2: 4, desc: "Enhances mental focus & emotional clarity" },
-    "3-3-3": { name: "⚡ Energy 3-3-3", in: 3, hold: 3, out: 3, hold2: 0, desc: "Quick invigorating breath reset" }
-  };
-
-  const curr = patterns[pattern];
-
-  const start = () => {
-    playChimeSound(528, 1.2, 0.25);
-    setPhase("in");
-    setCount(curr.in);
-    setCycles(0);
-
-    intervalRef.current = setInterval(() => {
-      setCount(c => {
-        if (c <= 1) {
-          setPhase(p => {
-            if (p === "in") {
-              if (curr.hold > 0) {
-                setCount(curr.hold);
-                playChimeSound(432, 1.0, 0.2);
-                return "hold";
-              }
-              setCount(curr.out);
-              playChimeSound(396, 1.2, 0.2);
-              return "out";
-            }
-            if (p === "hold") {
-              setCount(curr.out);
-              playChimeSound(396, 1.2, 0.2);
-              return "out";
-            }
-            if (p === "out") {
-              if (curr.hold2 > 0) {
-                setCount(curr.hold2);
-                playChimeSound(320, 0.8, 0.15);
-                return "hold2";
-              }
-              playChimeSound(528, 1.2, 0.25);
-              setCycles(cy => {
-                if (cy + 1 >= targetCycles) {
-                  stop();
-                  playChimeSound(659, 1.5, 0.3);
-                  if (showToast) showToast("Completed Breathing Session! 🌸");
-                  return cy + 1;
-                }
-                setCount(curr.in);
-                return cy + 1;
-              });
-              return "in";
-            }
-            if (p === "hold2") {
-              playChimeSound(528, 1.2, 0.25);
-              setCycles(cy => {
-                if (cy + 1 >= targetCycles) {
-                  stop();
-                  playChimeSound(659, 1.5, 0.3);
-                  if (showToast) showToast("Completed Breathing Session! 🌸");
-                  return cy + 1;
-                }
-                setCount(curr.in);
-                return cy + 1;
-              });
-              return "in";
-            }
-            return p;
-          });
-          return 0;
-        }
-        return c - 1;
+function BreathePanel({ showToast, setDailyNotes }) {
+  const handleSaveToNotes = ({ date, text }) => {
+    if (setDailyNotes) {
+      setDailyNotes(prev => {
+        const existing = (prev && prev[date]) || "";
+        const updated = existing ? `${existing}\n\n${text}` : text;
+        return { ...prev, [date]: updated };
       });
-    }, 1000);
-  };
-
-  const stop = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
-    setPhase("idle");
-  };
-
-  useEffect(() => () => { if (intervalRef.current) clearInterval(intervalRef.current); }, []);
-
-  const phaseColors = {
-    idle: "#dcedc1",
-    in: "linear-gradient(135deg, #a8e6cf, #b4d4ff)",
-    hold: "linear-gradient(135deg, #ffd3b6, #ffc3a0)",
-    out: "linear-gradient(135deg, #ffafbd, #ff9a76)",
-    hold2: "linear-gradient(135deg, #c3aed6, #b4d4ff)"
-  };
-
-  const phaseText = {
-    idle: "Ready",
-    in: "Breathe In 🌬️",
-    hold: "Hold ✋",
-    out: "Exhale 🍃",
-    hold2: "Rest 🧘"
+    }
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "10px 0" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 16 }}>
-        {Object.entries(patterns).map(([k, v]) => (
-          <button
-            key={k}
-            onClick={() => { stop(); setPattern(k); }}
-            style={{
-              padding: "10px 8px",
-              borderRadius: 12,
-              border: pattern === k ? "2px solid #ff9a76" : "1px solid rgba(139, 126, 116, 0.2)",
-              background: pattern === k ? "rgba(255, 195, 160, 0.25)" : "rgba(255, 255, 255, 0.6)",
-              color: "#5a4a42",
-              fontSize: 12,
-              fontWeight: pattern === k ? 700 : 500,
-              cursor: "pointer",
-              textAlign: "left"
-            }}
-          >
-            <div>{v.name}</div>
-            <div style={{ fontSize: 10, color: "rgba(139, 126, 116, 0.6)", fontWeight: 400 }}>{v.desc}</div>
-          </button>
-        ))}
-      </div>
-
-      {phase === "idle" && (
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, marginBottom: 20 }}>
-          <span style={{ fontSize: 12, color: "rgba(139, 126, 116, 0.7)", fontWeight: 600 }}>Target Cycles:</span>
-          {[3, 5, 10].map(c => (
-            <button
-              key={c}
-              onClick={() => setTargetCycles(c)}
-              style={{
-                padding: "4px 12px",
-                borderRadius: 10,
-                border: targetCycles === c ? "1.5px solid #ff9a76" : "1px solid rgba(139, 126, 116, 0.2)",
-                background: targetCycles === c ? "rgba(255, 195, 160, 0.3)" : "rgba(255, 255, 255, 0.5)",
-                color: "#5a4a42",
-                fontSize: 12,
-                fontWeight: targetCycles === c ? 700 : 500,
-                cursor: "pointer"
-              }}
-            >
-              {c} cycles
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div style={{ position: "relative", width: 220, height: 220, margin: "0 auto 24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div
-          style={{
-            width: phase === "in" ? 180 : phase === "hold" ? 180 : phase === "out" ? 120 : 130,
-            height: phase === "in" ? 180 : phase === "hold" ? 180 : phase === "out" ? 120 : 130,
-            borderRadius: "50%",
-            background: phaseColors[phase] || phaseColors.idle,
-            transition: phase === "idle" ? "all 0.5s ease" : `all ${phase === "in" ? curr.in : phase === "hold" ? curr.hold : curr.out}s ease-in-out`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow: phase === "idle" ? "0 8px 24px rgba(0,0,0,0.08)" : `0 0 50px ${phase === "in" ? "rgba(168, 230, 207, 0.6)" : phase === "hold" ? "rgba(255, 211, 182, 0.6)" : "rgba(255, 175, 189, 0.6)"}`
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <p style={{ color: "#fff", fontSize: 36, fontWeight: 800, margin: 0, textShadow: "0 2px 8px rgba(0,0,0,0.15)" }}>
-              {phase === "idle" ? "Begin" : count}
-            </p>
-            <p style={{ color: "rgba(255, 255, 255, 0.95)", fontSize: 13, marginTop: 4, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>
-              {phaseText[phase]}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {phase === "idle" ? (
-        <button
-          onClick={start}
-          style={{
-            padding: "14px 40px",
-            borderRadius: 20,
-            background: "linear-gradient(135deg, #a8e6cf, #dcedc1)",
-            border: "none",
-            color: "#fff",
-            fontSize: 15,
-            fontWeight: 700,
-            cursor: "pointer",
-            boxShadow: "0 8px 24px rgba(168, 230, 207, 0.4)"
-          }}
-        >
-          ▶ Start Breathing ({curr.name})
-        </button>
-      ) : (
-        <div>
-          <p style={{ fontSize: 13, color: "rgba(139, 126, 116, 0.7)", marginBottom: 12, fontWeight: 600 }}>
-            Cycle <strong>{cycles + 1}</strong> of <strong>{targetCycles}</strong>
-          </p>
-          <button
-            onClick={stop}
-            style={{
-              padding: "10px 28px",
-              borderRadius: 14,
-              background: "rgba(255, 154, 118, 0.15)",
-              border: "1.5px solid rgba(255, 154, 118, 0.3)",
-              color: "#ff9a76",
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: "pointer"
-            }}
-          >
-            ⏹ Stop Session
-          </button>
-        </div>
-      )}
-    </div>
+    <BreathingStudio
+      initialPatternId="sigh"
+      onSaveToNotes={handleSaveToNotes}
+      showToast={showToast}
+    />
   );
 }
+
 
 function GroundingPanel({ setMeaningfulMoments, showToast }) {
   const [step, setStep] = useState(5);
@@ -4852,7 +4673,7 @@ function MomentForm({ type, setType, onAdd, onCancel }) {
   );
 }
 
-function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMoments, setTasks, setHabits, setTab, userName, ttsOn, handleToggleTTS }) {
+function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMoments, setTasks, setHabits, setTab, userName, ttsOn, handleToggleTTS, onOpenBreathing }) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState("empathic");
@@ -4883,7 +4704,11 @@ function ChatScreen({ chatMsgs, setChatMsgs, meaningfulMoments, setMeaningfulMom
 
   const handleActionChip = (chip, messageText) => {
     if (chip.actionType === "breath") {
-      setTab("wellness");
+      if (onOpenBreathing) {
+        onOpenBreathing("calm");
+      } else {
+        setTab("wellness");
+      }
     } else if (chip.actionType === "task") {
       setTasks(p => [...p, { id: uid(), title: messageText.slice(0, 50), done: false, createdAt: now().toISOString() }]);
     } else if (chip.actionType === "habit") {
